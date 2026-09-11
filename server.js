@@ -10,8 +10,12 @@
 // { "type": "module" } to package.json.
 
 import http from "node:http";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
 const BASE_URL = "https://cdn.nba.com/static/json/liveData";
 
 // Game IDs are 10 digits. Validating matters because the ID goes straight
@@ -101,19 +105,45 @@ const routes = {
   },
 };
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const handler = routes[url.pathname];
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+};
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", "application/json");
+// Serves the front end from ./public. Anything outside that directory or
+// with an unknown extension is a 404 — path.resolve + the prefix check is
+// what stops "../server.js" from being served.
+async function serveStatic(pathname, res) {
+  const rel = pathname === "/" ? "index.html" : pathname.slice(1);
+  const file = path.resolve(PUBLIC_DIR, rel);
+  const type = MIME[path.extname(file)];
 
-  if (!handler) {
-    res.writeHead(404);
+  if (!file.startsWith(PUBLIC_DIR + path.sep) || !type) {
+    res.writeHead(404, { "Content-Type": "application/json" });
     return res.end(
       JSON.stringify({ error: "Not found", routes: Object.keys(routes) })
     );
   }
+
+  try {
+    const body = await readFile(file);
+    res.writeHead(200, { "Content-Type": type });
+    res.end(body);
+  } catch {
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Not found" }));
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const handler = routes[url.pathname];
+
+  if (!handler) return serveStatic(url.pathname, res);
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "application/json");
 
   try {
     const data = await handler(url.searchParams);
