@@ -10,13 +10,31 @@
   <main>
     <header>
       <h1>Leading Scorers</h1>
-      <form id="game-form">
+
+      <div class="controls">
         <label>
-          Game ID
-          <input id="game-id" name="gameId" placeholder="0022500002" pattern="\d{10}" />
+          Season
+          <select id="season"></select>
         </label>
-        <button type="submit">Load</button>
-      </form>
+        <label>
+          Date
+          <select id="date"></select>
+        </label>
+      </div>
+
+      <div id="games" class="games"></div>
+
+      <details id="manual">
+        <summary>Load by game ID</summary>
+        <form id="game-form">
+          <label>
+            Game ID
+            <input id="game-id" name="gameId" placeholder="0022500002" pattern="\d{10}" />
+          </label>
+          <button type="submit">Load</button>
+        </form>
+      </details>
+
       <p id="matchup" class="muted"></p>
     </header>
 

@@ -6,6 +6,9 @@ const input = document.getElementById("game-id");
 const status = document.getElementById("status");
 const teams = document.getElementById("teams");
 const template = document.getElementById("team-card");
+const seasonSelect = document.getElementById("season");
+const dateSelect = document.getElementById("date");
+const gameList = document.getElementById("games");
 
 // Stat keys as the CDN names them -> what a human wants to read. Order here
 // is display order; anything the CDN adds later falls through to the bottom.
@@ -147,9 +150,152 @@ async function load(gameId) {
   }
 }
 
+/* ---------------------------- schedule browser --------------------------- */
+
+const EARLIEST_SEASON = 2019; // matches the server's floor
+const schedules = new Map(); // season -> dates, so switching back costs nothing
+
+// Mirrors currentSeason() on the server: seasons tip off in October, so before
+// then the newest season with games played is the previous year's.
+function currentSeason(now = new Date()) {
+  const start = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
+function seasonOptions() {
+  const newest = Number(currentSeason().slice(0, 4));
+  const seasons = [];
+  for (let year = newest; year >= EARLIEST_SEASON; year--) {
+    seasons.push(`${year}-${String((year + 1) % 100).padStart(2, "0")}`);
+  }
+  return seasons;
+}
+
+// Parsed as UTC, so the label can't slip a day for anyone west of Greenwich.
+const DATE_LABEL = new Intl.DateTimeFormat(undefined, {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const dateLabel = (iso) => DATE_LABEL.format(new Date(`${iso}T00:00:00Z`));
+
+function option(value, label) {
+  const el = document.createElement("option");
+  el.value = value;
+  el.textContent = label;
+  return el;
+}
+
+// Only a finished game has a box score to open.
+const isFinal = (game) => game.status === 3;
+
+function renderGames(day) {
+  gameList.replaceChildren(
+    ...day.games.map((game) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "game";
+      button.dataset.gameId = game.gameId;
+
+      if (isFinal(game)) {
+        button.textContent =
+          `${game.away.tricode} ${game.away.score} @ ` +
+          `${game.home.tricode} ${game.home.score}`;
+      } else {
+        // Scores are 0-0 until tip-off; showing them would read as a real
+        // result, so an unplayed game shows the matchup and its start time.
+        button.textContent = `${game.away.tricode} @ ${game.home.tricode}`;
+        button.title = `${game.statusText} — no box score yet`;
+        button.disabled = true;
+      }
+
+      return button;
+    })
+  );
+}
+
+function markActive(gameId) {
+  for (const button of gameList.querySelectorAll(".game")) {
+    button.classList.toggle("active", button.dataset.gameId === gameId);
+  }
+}
+
+function showDate(iso) {
+  const day = schedules.get(seasonSelect.value)?.find((d) => d.date === iso);
+  if (!day) return;
+
+  dateSelect.value = iso;
+  renderGames(day);
+
+  // Land on a game rather than an empty page — the first one that was played.
+  const opener = day.games.find(isFinal);
+  if (opener) {
+    markActive(opener.gameId);
+    load(opener.gameId);
+    return;
+  }
+
+  teams.hidden = true;
+  status.hidden = false;
+  status.className = "muted";
+  status.textContent = "No finished games on this date yet.";
+}
+
+async function showSeason(season) {
+  if (!schedules.has(season)) {
+    status.hidden = false;
+    status.className = "muted";
+    status.textContent = "Loading schedule…";
+    teams.hidden = true;
+
+    try {
+      const res = await fetch(`/api/schedule?season=${encodeURIComponent(season)}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      schedules.set(season, body.dates);
+    } catch (err) {
+      status.className = "muted error";
+      status.textContent = `Couldn't load the ${season} schedule: ${err.message}`;
+      return;
+    }
+  }
+
+  const dates = schedules.get(season);
+  dateSelect.replaceChildren(
+    ...dates.map((day) =>
+      option(
+        day.date,
+        `${dateLabel(day.date)} · ${day.games.length} ` +
+          (day.games.length === 1 ? "game" : "games")
+      )
+    )
+  );
+
+  // Open on the newest date that has a played game: mid-season that's the
+  // latest results, and in the offseason it's the end of the last season.
+  const landing = [...dates].reverse().find((day) => day.games.some(isFinal));
+  showDate((landing ?? dates.at(-1)).date);
+}
+
+seasonSelect.replaceChildren(...seasonOptions().map((s) => option(s, s)));
+seasonSelect.value = currentSeason();
+seasonSelect.addEventListener("change", () => showSeason(seasonSelect.value));
+dateSelect.addEventListener("change", () => showDate(dateSelect.value));
+
+gameList.addEventListener("click", (e) => {
+  const button = e.target.closest(".game");
+  if (!button) return;
+  markActive(button.dataset.gameId);
+  load(button.dataset.gameId);
+});
+
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  // A hand-typed ID is usually off the current date, so drop the highlight.
+  markActive(null);
   load(input.value.trim());
 });
 
-load();
+showSeason(currentSeason());
