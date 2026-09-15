@@ -1,11 +1,11 @@
 // Fetches a box score from the local proxy and renders every stat the CDN
-// reports for the game's top scorer.
+// reports for each team's leading scorer, side by side.
 
 const form = document.getElementById("game-form");
 const input = document.getElementById("game-id");
 const status = document.getElementById("status");
-const section = document.getElementById("player");
-const tbody = document.querySelector("#stats tbody");
+const teams = document.getElementById("teams");
+const template = document.getElementById("team-card");
 
 // Stat keys as the CDN names them -> what a human wants to read. Order here
 // is display order; anything the CDN adds later falls through to the bottom.
@@ -56,49 +56,76 @@ function formatValue(key, value) {
   return String(value);
 }
 
-function leadingScorer(game) {
+// Top scorer on one team. Null when the CDN lists no players — pregame box
+// scores carry the teams but an empty roster.
+function teamLeader(team) {
   let best = null;
-  for (const team of [game.homeTeam, game.awayTeam]) {
-    for (const player of team.players) {
-      if (!best || player.statistics.points > best.player.statistics.points) {
-        best = { player, team };
-      }
+  for (const player of team.players ?? []) {
+    if (!best || player.statistics.points > best.statistics.points) {
+      best = player;
     }
   }
   return best;
 }
 
-function render(game) {
-  const { player, team } = leadingScorer(game);
-  const stats = player.statistics;
-
-  document.getElementById("matchup").textContent =
-    `${game.awayTeam.teamTricode} ${game.awayTeam.score} @ ` +
-    `${game.homeTeam.teamTricode} ${game.homeTeam.score} · ${game.gameStatusText}`;
-
-  document.getElementById("player-name").textContent = player.name;
-  document.getElementById("player-meta").textContent =
-    `#${player.jerseyNum} · ${player.position || "—"} · ${team.teamCity} ${team.teamName}`;
-
+function statRows(stats) {
   const ordered = [
     ...Object.keys(LABELS).filter((k) => k in stats),
     ...Object.keys(stats).filter((k) => !(k in LABELS)),
   ];
 
-  tbody.replaceChildren(
-    ...ordered.map((key) => {
-      const tr = document.createElement("tr");
-      if (key === "points") tr.className = "points";
-      const th = document.createElement("td");
-      th.textContent = LABELS[key] || key;
-      const td = document.createElement("td");
-      td.textContent = formatValue(key, stats[key]);
-      tr.append(th, td);
-      return tr;
-    })
-  );
+  return ordered.map((key) => {
+    const tr = document.createElement("tr");
+    if (key === "points") tr.className = "points";
+    const name = document.createElement("td");
+    name.textContent = LABELS[key] || key;
+    const value = document.createElement("td");
+    value.textContent = formatValue(key, stats[key]);
+    tr.append(name, value);
+    return tr;
+  });
+}
 
-  section.hidden = false;
+// Returns the filled card plus its leader's point total, which render() needs
+// to decide which of the two won the matchup.
+function teamCard(team) {
+  const card = template.content.firstElementChild.cloneNode(true);
+  const player = teamLeader(team);
+
+  card.querySelector(".team-name").textContent =
+    `${team.teamCity} ${team.teamName} · ${team.score}`;
+
+  if (!player) {
+    card.querySelector(".player-name").textContent = "—";
+    card.querySelector(".player-meta").textContent = "No player stats yet";
+    card.querySelector(".table-wrap").remove();
+    return { card, points: -1 };
+  }
+
+  card.querySelector(".player-name").textContent = player.name;
+  card.querySelector(".player-meta").textContent =
+    `#${player.jerseyNum} · ${player.position || "—"}`;
+  card.querySelector("tbody").replaceChildren(...statRows(player.statistics));
+
+  return { card, points: player.statistics.points };
+}
+
+function render(game) {
+  document.getElementById("matchup").textContent =
+    `${game.awayTeam.teamTricode} ${game.awayTeam.score} @ ` +
+    `${game.homeTeam.teamTricode} ${game.homeTeam.score} · ${game.gameStatusText}`;
+
+  // Away first, so the cards read in the same order as the matchup line.
+  const away = teamCard(game.awayTeam);
+  const home = teamCard(game.homeTeam);
+
+  // Flag whichever leader outscored the other. A tie flags neither — there's
+  // no single top scorer to point at.
+  if (away.points > home.points) away.card.classList.add("leader");
+  else if (home.points > away.points) home.card.classList.add("leader");
+
+  teams.replaceChildren(away.card, home.card);
+  teams.hidden = false;
   status.hidden = true;
 }
 
@@ -106,7 +133,7 @@ async function load(gameId) {
   status.hidden = false;
   status.className = "muted";
   status.textContent = "Loading…";
-  section.hidden = true;
+  teams.hidden = true;
 
   const qs = gameId ? `?gameId=${encodeURIComponent(gameId)}` : "";
   try {

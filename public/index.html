@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Leading Scorer</title>
+  <title>Leading Scorers</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main>
     <header>
-      <h1>Leading Scorer</h1>
+      <h1>Leading Scorers</h1>
       <form id="game-form">
         <label>
           Game ID
@@ -20,19 +20,27 @@
       <p id="matchup" class="muted"></p>
     </header>
 
-    <section id="player" hidden>
-      <h2 id="player-name"></h2>
-      <p id="player-meta" class="muted"></p>
+    <section id="teams" hidden></section>
+
+    <p id="status" class="muted">Loading…</p>
+  </main>
+
+  <!-- One card per team; both are filled from the same shape, so the markup
+       lives here once rather than twice in app.js. -->
+  <template id="team-card">
+    <article class="team">
+      <p class="team-name muted"></p>
+      <h2 class="player-name"></h2>
+      <p class="player-meta muted"></p>
       <div class="table-wrap">
-        <table id="stats">
+        <table>
           <thead><tr><th>Stat</th><th>Value</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-    </section>
+    </article>
+  </template>
 
-    <p id="status" class="muted">Loading…</p>
-  </main>
   <script src="app.js"></script>
 </body>
 </html>
