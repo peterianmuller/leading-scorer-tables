@@ -39,10 +39,10 @@ const EARLIEST_SEASON = 2019;
 
 // Warriors vs Lakers, Oct 21 2025 — the 2025-26 season opener. Used when no
 // gameId is supplied, so the routes return real data during the offseason.
-const DEFAULT_GAME_ID = "0022500002";
+export const DEFAULT_GAME_ID = "0022500002";
 
 // Live data goes stale fast, so the TTL is per-endpoint rather than global.
-const cache = new Map();
+export const cache = new Map();
 
 // cdn.nba.com sits behind a bot filter that rejects requests with no
 // browser-like identity. Without these you get a 403, not a 401 — which
@@ -60,7 +60,7 @@ const HEADERS = {
 // `transform` runs before the result is cached, so an upstream that's mostly
 // padding (the schedule is 4.5MB, 189KB of it useful) doesn't sit in memory in
 // its raw form for the whole TTL.
-async function fetchJson(url, ttlMs, transform = (body) => body) {
+export async function fetchJson(url, ttlMs, transform = (body) => body) {
   const cached = cache.get(url);
   if (cached && Date.now() - cached.at < ttlMs) {
     return cached.body;
@@ -88,7 +88,7 @@ async function fetchJson(url, ttlMs, transform = (body) => body) {
 }
 
 // Resolves and validates a gameId, falling back to the default when absent.
-function resolveGameId(params) {
+export function resolveGameId(params) {
   const raw = params.get("gameId");
   const gameId = raw === null || raw === "" ? DEFAULT_GAME_ID : raw.trim();
   if (!GAME_ID.test(gameId)) {
@@ -106,12 +106,12 @@ function resolveGameId(params) {
 // The season that "now" belongs to, as the NBA labels it. Seasons tip off in
 // October, so during the offseason this names the one that just finished —
 // which is the useful default, since those games have box scores.
-function currentSeason(now = new Date()) {
+export function currentSeason(now = new Date()) {
   const start = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
-function resolveSeason(params) {
+export function resolveSeason(params) {
   const raw = params.get("season");
   const season = raw === null || raw === "" ? currentSeason() : raw.trim();
   const match = SEASON.exec(season);
@@ -130,7 +130,7 @@ function resolveSeason(params) {
 // labels. The browser needs a fraction of that, so it's reduced here: one
 // season comes out around 115KB, small enough to fetch once and switch dates
 // client-side with no further requests.
-function reduceSchedule(payload) {
+export function reduceSchedule(payload) {
   const dates = [];
 
   for (const day of payload.leagueSchedule?.gameDates ?? []) {
@@ -150,7 +150,7 @@ function reduceSchedule(payload) {
   return dates;
 }
 
-const routes = {
+export const routes = {
   // Today's games, scores, and status. Empty during the offseason.
   "/api/scoreboard": () =>
     fetchJson(`${BASE_URL}/scoreboard/todaysScoreboard_00.json`, 20_000),
@@ -213,7 +213,7 @@ async function serveStatic(pathname, res) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
+export const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const handler = routes[url.pathname];
 
@@ -233,6 +233,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Listening on http://localhost:${PORT}`);
-});
+// Only listen when run directly (`node server.js`). The tests import this
+// module and start the server on a port of their own.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  server.listen(PORT, () => {
+    console.log(`Listening on http://localhost:${PORT}`);
+  });
+}
