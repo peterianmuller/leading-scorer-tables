@@ -12,9 +12,10 @@
 // { "type": "module" } to package.json.
 
 import http from "node:http";
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
@@ -235,7 +236,25 @@ export const server = http.createServer(async (req, res) => {
 
 // Only listen when run directly (`node server.js`). The tests import this
 // module and start the server on a port of their own.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+//
+// import.meta.url is realpath-resolved by the ESM loader, so argv[1] has to be
+// resolved the same way or a launch through any symlink (npm link, a symlinked
+// release dir, /tmp on macOS) would quietly skip listen() and exit 0.
+function isMainModule() {
+  // Node >= 24.2 answers this directly, and gets `node server` (no extension)
+  // right as well.
+  if (typeof import.meta.main === "boolean") return import.meta.main;
+
+  const entry = process.argv[1];
+  if (!entry) return false; // --eval, REPL, stdin
+  try {
+    return pathToFileURL(realpathSync(entry)).href === import.meta.url;
+  } catch {
+    return false; // entry vanished, or a permission error on the realpath
+  }
+}
+
+if (isMainModule()) {
   server.listen(PORT, () => {
     console.log(`Listening on http://localhost:${PORT}`);
   });
