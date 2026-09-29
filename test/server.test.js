@@ -5,7 +5,14 @@
 import { test, describe, before, after, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import {
+import { fileURLToPath } from "node:url";
+
+// Static routes are exercised against a small fixture rather than the React
+// build, so the suite runs without `npm run build`. The server reads this at
+// import time, hence the dynamic import below.
+process.env.STATIC_DIR = fileURLToPath(new URL("fixtures/static", import.meta.url));
+
+const {
   cache,
   currentSeason,
   DEFAULT_GAME_ID,
@@ -13,7 +20,7 @@ import {
   resolveGameId,
   resolveSeason,
   server,
-} from "../server.js";
+} = await import("../server.js");
 
 const params = (qs = "") => new URLSearchParams(qs);
 
@@ -332,7 +339,7 @@ describe("HTTP server", () => {
       assert.equal(res.status, 404);
     });
 
-    test("refuses to serve files outside ./public", async () => {
+    test("refuses to serve files outside the static directory", async () => {
       const res = await get(port, "/../server.js");
       assert.equal(res.status, 404);
       assert.doesNotMatch(res.body, /createServer/);

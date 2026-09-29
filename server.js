@@ -12,13 +12,17 @@
 // { "type": "module" } to package.json.
 
 import http from "node:http";
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const PORT = process.env.PORT || 3000;
-const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
+// The built React app (`npm run build`). STATIC_DIR overrides it — the tests
+// point it at a fixture directory so they don't depend on a build.
+const STATIC_DIR = process.env.STATIC_DIR
+  ? path.resolve(process.env.STATIC_DIR)
+  : path.join(path.dirname(fileURLToPath(import.meta.url)), "dist");
 const BASE_URL = "https://cdn.nba.com/static/json/liveData";
 
 // The schedule lives on stats.nba.com rather than the liveData CDN. The CDN
@@ -187,17 +191,20 @@ const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
 };
 
-// Serves the front end from ./public. Anything outside that directory or
+// Serves the built front end from STATIC_DIR. Anything outside that directory or
 // with an unknown extension is a 404 — path.resolve + the prefix check is
 // what stops "../server.js" from being served.
 async function serveStatic(pathname, res) {
   const rel = pathname === "/" ? "index.html" : pathname.slice(1);
-  const file = path.resolve(PUBLIC_DIR, rel);
+  const file = path.resolve(STATIC_DIR, rel);
   const type = MIME[path.extname(file)];
 
-  if (!file.startsWith(PUBLIC_DIR + path.sep) || !type) {
+  if (!file.startsWith(STATIC_DIR + path.sep) || !type) {
     res.writeHead(404, { "Content-Type": "application/json" });
     return res.end(
       JSON.stringify({ error: "Not found", routes: Object.keys(routes) })
@@ -257,5 +264,8 @@ function isMainModule() {
 if (isMainModule()) {
   server.listen(PORT, () => {
     console.log(`Listening on http://localhost:${PORT}`);
+    if (!existsSync(path.join(STATIC_DIR, "index.html"))) {
+      console.warn(`No front end in ${STATIC_DIR} — run \`npm run build\` first.`);
+    }
   });
 }
