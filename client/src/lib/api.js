@@ -12,3 +12,6 @@ export const fetchBoxscore = (gameId) =>
 
 export const fetchSchedule = (season) =>
   getJson(`/api/schedule?season=${encodeURIComponent(season)}`);
+
+export const fetchHeadshot = (personId) =>
+  getJson(`/api/headshot?personId=${encodeURIComponent(personId)}`);

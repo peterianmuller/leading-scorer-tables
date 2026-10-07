@@ -16,8 +16,12 @@ const {
   cache,
   currentSeason,
   DEFAULT_GAME_ID,
+  pickWikidataImage,
+  plainText,
+  reduceImageInfo,
   reduceSchedule,
   resolveGameId,
+  resolvePersonId,
   resolveSeason,
   server,
 } = await import("../server.js");
@@ -137,6 +141,86 @@ describe("reduceSchedule", () => {
     );
     assert.equal(day.games[0].statusText, "");
     assert.deepEqual(reduceSchedule({}), []);
+  });
+});
+
+describe("resolvePersonId", () => {
+  test("accepts and trims a numeric ID", () => {
+    assert.equal(resolvePersonId(params("personId=2544")), "2544");
+    assert.equal(resolvePersonId(params("personId=%201630559%20")), "1630559");
+  });
+
+  test("rejects a missing, empty or non-numeric ID with a 400 that echoes the input", () => {
+    for (const qs of ["", "personId=", "personId=lebron", "personId=12345678901"]) {
+      assert.throws(
+        () => resolvePersonId(params(qs)),
+        (err) => err.status === 400 && /personId must be/.test(err.message)
+      );
+    }
+    assert.throws(() => resolvePersonId(params("personId=lebron")), /got "lebron"/);
+  });
+});
+
+describe("pickWikidataImage", () => {
+  test("returns the free image of the matching item", () => {
+    const payload = {
+      query: { pages: { 1: { title: "Q36159", pageprops: { page_image_free: "LeBron.jpg" } } } },
+    };
+    assert.equal(pickWikidataImage(payload), "LeBron.jpg");
+  });
+
+  test("is null when no item matches or the item has no photo", () => {
+    assert.equal(pickWikidataImage({ batchcomplete: "" }), null);
+    assert.equal(pickWikidataImage({ query: { pages: { 1: { title: "Q1" } } } }), null);
+  });
+});
+
+describe("plainText", () => {
+  test("strips tags and decodes entities", () => {
+    assert.equal(
+      plainText('<a href="//flickr.com/x">Erik&nbsp;Drost</a> &amp; &quot;Kev&#39;s&quot;'),
+      'Erik Drost & "Kev\'s"'
+    );
+  });
+
+  test("decodes &amp; last so an escaped entity stays literal", () => {
+    assert.equal(plainText("&amp;lt;"), "&lt;");
+  });
+});
+
+describe("reduceImageInfo", () => {
+  const imageinfo = (info) => ({ query: { pages: { 1: { imageinfo: [info] } } } });
+
+  test("keeps the thumbnail and the credit the license needs", () => {
+    const body = reduceImageInfo(
+      imageinfo({
+        thumburl: "https://upload.wikimedia.org/a/330px-A.jpg?utm_source=commons",
+        descriptionurl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+        extmetadata: {
+          Artist: { value: '<a href="https://www.flickr.com/people/x">Erik Drost</a>' },
+          LicenseShortName: { value: "CC BY 2.0" },
+          LicenseUrl: { value: "https://creativecommons.org/licenses/by/2.0" },
+        },
+      })
+    );
+    assert.deepEqual(body, {
+      url: "https://upload.wikimedia.org/a/330px-A.jpg",
+      page: "https://commons.wikimedia.org/wiki/File:A.jpg",
+      artist: "Erik Drost",
+      license: "CC BY 2.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+    });
+  });
+
+  test("leaves missing credit fields null", () => {
+    const body = reduceImageInfo(imageinfo({ thumburl: "https://x/a.jpg", descriptionurl: "p" }));
+    assert.equal(body.artist, null);
+    assert.equal(body.license, null);
+  });
+
+  test("is null for a missing file", () => {
+    assert.equal(reduceImageInfo({ query: { pages: { "-1": { missing: "" } } } }), null);
+    assert.equal(reduceImageInfo({}), null);
   });
 });
 
@@ -305,6 +389,104 @@ describe("HTTP server", () => {
 
       assert.equal(res.status, 400);
       assert.match(res.json().error, /start at 2019/);
+      assert.equal(fetchMock.mock.callCount(), 0);
+    });
+  });
+
+  describe("/api/headshot", () => {
+    // Answers each Wikimedia API with its own body, since one request goes to both.
+    const wikimedia = ({ wikidata, commons, commonsStatus = 200 }) =>
+      fetchMock.mock.mockImplementation(async (url) =>
+        url.startsWith("https://www.wikidata.org/")
+          ? new Response(JSON.stringify(wikidata))
+          : new Response(JSON.stringify(commons), { status: commonsStatus })
+      );
+
+    const found = {
+      wikidata: {
+        query: { pages: { 1: { pageprops: { page_image_free: "LeBron_James_(cropped).jpg" } } } },
+      },
+      commons: {
+        query: {
+          pages: {
+            1: {
+              imageinfo: [
+                {
+                  thumburl: "https://upload.wikimedia.org/x/330px-LeBron.jpg?utm_source=c",
+                  descriptionurl: "https://commons.wikimedia.org/wiki/File:LeBron.jpg",
+                  extmetadata: {
+                    Artist: { value: "<a>Erik Drost</a>" },
+                    LicenseShortName: { value: "CC BY 2.0" },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    test("looks the player up on Wikidata, then the photo on Commons", async () => {
+      wikimedia(found);
+      const res = await get(port, "/api/headshot?personId=2544");
+
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.json(), {
+        url: "https://upload.wikimedia.org/x/330px-LeBron.jpg",
+        page: "https://commons.wikimedia.org/wiki/File:LeBron.jpg",
+        artist: "Erik Drost",
+        license: "CC BY 2.0",
+        licenseUrl: null,
+      });
+
+      const [wikidata, commons] = fetchMock.mock.calls.map((c) => new URL(c.arguments[0]));
+      assert.equal(wikidata.origin + wikidata.pathname, "https://www.wikidata.org/w/api.php");
+      assert.equal(wikidata.searchParams.get("gsrsearch"), "haswbstatement:P3647=2544");
+      assert.equal(commons.origin + commons.pathname, "https://commons.wikimedia.org/w/api.php");
+      assert.equal(commons.searchParams.get("titles"), "File:LeBron_James_(cropped).jpg");
+    });
+
+    test("identifies itself to Wikimedia instead of posing as a browser", async () => {
+      wikimedia(found);
+      await get(port, "/api/headshot?personId=2544");
+
+      for (const call of fetchMock.mock.calls) {
+        const headers = call.arguments[1].headers;
+        assert.match(headers["User-Agent"], /^leading-scorer-tables\/.*github\.com/);
+        assert.equal(headers.Referer, undefined);
+      }
+    });
+
+    test("returns null without asking Commons when Wikidata has no photo", async () => {
+      wikimedia({ wikidata: { batchcomplete: "" } });
+      const res = await get(port, "/api/headshot?personId=99999999");
+
+      assert.equal(res.status, 200);
+      assert.equal(res.json(), null);
+      assert.equal(fetchMock.mock.callCount(), 1);
+    });
+
+    test("caches a miss as well as a hit", async () => {
+      wikimedia({ wikidata: { batchcomplete: "" } });
+      await get(port, "/api/headshot?personId=99999999");
+      await get(port, "/api/headshot?personId=99999999");
+      assert.equal(fetchMock.mock.callCount(), 1);
+    });
+
+    test("names Wikimedia, not the NBA, when an upstream fails", async () => {
+      wikimedia({ ...found, commonsStatus: 500 });
+      const res = await get(port, "/api/headshot?personId=2544");
+
+      assert.equal(res.status, 502);
+      assert.match(res.json().error, /^Wikimedia returned 500/);
+      assert.doesNotMatch(res.json().error, /blocked/);
+    });
+
+    test("returns 400 without contacting Wikimedia for a bad personId", async () => {
+      const res = await get(port, "/api/headshot?personId=lebron");
+
+      assert.equal(res.status, 400);
+      assert.match(res.json().error, /got "lebron"/);
       assert.equal(fetchMock.mock.callCount(), 0);
     });
   });

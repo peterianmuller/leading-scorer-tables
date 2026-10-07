@@ -7,6 +7,7 @@
 //   curl "http://localhost:3000/api/boxscore?gameId=0022500066"  # any game
 //   curl "http://localhost:3000/api/schedule"                     # season's games
 //   curl "http://localhost:3000/api/schedule?season=2023-24"
+//   curl "http://localhost:3000/api/headshot?personId=2544"       # Commons photo
 //
 // NOTE: still an ES module, so either keep this as server.mjs or add
 // { "type": "module" } to package.json.
@@ -31,6 +32,25 @@ const BASE_URL = "https://cdn.nba.com/static/json/liveData";
 // stats.nba.com takes a Season parameter, which is what makes browsing past
 // games possible at all.
 const STATS_URL = "https://stats.nba.com/stats";
+
+// Player photos come from Wikimedia rather than the NBA, whose headshots are
+// copyrighted. Wikidata maps the NBA.com player ID (property P3647) to the
+// player's item, and its page_image_free prop names a freely licensed Commons
+// photo. Commons then supplies a thumbnail plus the credit the license needs.
+const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
+const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
+
+// Wikimedia asks API clients for a descriptive User-Agent with a way to reach
+// the maintainer, rather than the browser disguise the NBA needs.
+const WIKI_HEADERS = {
+  "User-Agent":
+    "leading-scorer-tables/1.0 (https://github.com/peterianmuller/leading-scorer-tables)",
+  Accept: "application/json",
+};
+
+// NBA.com person IDs are numeric: 2544 for LeBron James, 1630559 for newer
+// players. Validated for the same reason as game IDs.
+const PERSON_ID = /^\d{1,10}$/;
 
 // Game IDs are 10 digits. Validating matters because the ID goes straight
 // into a URL path — never interpolate unchecked user input into a fetch URL.
@@ -64,22 +84,28 @@ const HEADERS = {
 
 // `transform` runs before the result is cached, so an upstream that's mostly
 // padding (the schedule is 4.5MB, 189KB of it useful) doesn't sit in memory in
-// its raw form for the whole TTL.
-export async function fetchJson(url, ttlMs, transform = (body) => body) {
+// its raw form for the whole TTL. `headers` and `upstream` default to the NBA;
+// the Wikimedia lookups pass their own.
+export async function fetchJson(
+  url,
+  ttlMs,
+  transform = (body) => body,
+  { headers = HEADERS, upstream = "NBA" } = {}
+) {
   const cached = cache.get(url);
   if (cached && Date.now() - cached.at < ttlMs) {
     return cached.body;
   }
 
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await fetch(url, { headers });
 
   if (!res.ok) {
     // 403 here means one of two things: the bot filter rejected us, or the
     // file genuinely isn't there. The CDN returns 403 for missing objects
     // rather than 404, so the status alone can't tell you which.
     const err = new Error(
-      `NBA returned ${res.status} for ${new URL(url).pathname}. ` +
-        (res.status === 403
+      `${upstream} returned ${res.status} for ${new URL(url).pathname}. ` +
+        (res.status === 403 && upstream === "NBA"
           ? "Either the request was blocked or that game has no live file."
           : "")
     );
@@ -155,6 +181,61 @@ export function reduceSchedule(payload) {
   return dates;
 }
 
+// Unlike gameId, personId has no sensible default, so it's required.
+export function resolvePersonId(params) {
+  const personId = (params.get("personId") ?? "").trim();
+  if (!PERSON_ID.test(personId)) {
+    const err = new Error(
+      `personId must be an NBA.com player ID of up to 10 digits, got "${personId}". ` +
+        `LeBron James is 2544.`
+    );
+    err.status = 400;
+    throw err;
+  }
+  return personId;
+}
+
+// Wikidata search result -> the Commons file name of the player's free photo,
+// or null when the player has no Wikidata item or the item has no photo.
+export function pickWikidataImage(payload) {
+  const [page] = Object.values(payload.query?.pages ?? {});
+  return page?.pageprops?.page_image_free ?? null;
+}
+
+// Commons' Artist field is HTML, usually a link to the photographer's profile.
+// The client renders text, so tags go and the common entities are decoded.
+export function plainText(html) {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Commons imageinfo -> the thumbnail plus what the license says must be shown
+// with it: who took it, under which license, and a link back to the file page.
+export function reduceImageInfo(payload) {
+  const [page] = Object.values(payload.query?.pages ?? {});
+  const info = page?.imageinfo?.[0];
+  if (!info?.thumburl) return null;
+
+  const meta = info.extmetadata ?? {};
+  return {
+    // Commons appends utm_* tracking params to the thumbnail; they're not needed.
+    url: info.thumburl.split("?")[0],
+    page: info.descriptionurl,
+    artist: meta.Artist ? plainText(meta.Artist.value) || null : null,
+    license: meta.LicenseShortName?.value ?? null,
+    licenseUrl: meta.LicenseUrl?.value ?? null,
+  };
+}
+
 export const routes = {
   // Today's games, scores, and status. Empty during the offseason.
   "/api/scoreboard": () =>
@@ -184,6 +265,40 @@ export const routes = {
   "/api/playbyplay": (params) => {
     const gameId = resolveGameId(params);
     return fetchJson(`${BASE_URL}/playbyplay/playbyplay_${gameId}.json`, 20_000);
+  },
+
+  // /api/headshot?personId=2544
+  // { url, page, artist, license, licenseUrl } for a freely licensed Commons
+  // photo of the player, or null when Wikimedia has none. Both lookups are
+  // cached for a day, misses included: a player's photo rarely changes, and
+  // every box score asks again for the same handful of players.
+  "/api/headshot": async (params) => {
+    const personId = resolvePersonId(params);
+    const day = 24 * 60 * 60 * 1000;
+    const wiki = { headers: WIKI_HEADERS, upstream: "Wikimedia" };
+
+    const search = new URLSearchParams({
+      action: "query",
+      format: "json",
+      generator: "search",
+      gsrsearch: `haswbstatement:P3647=${personId}`,
+      gsrlimit: "1",
+      prop: "pageprops",
+      ppprop: "page_image_free",
+    });
+    const file = await fetchJson(`${WIKIDATA_API}?${search}`, day, pickWikidataImage, wiki);
+    if (!file) return null;
+
+    const info = new URLSearchParams({
+      action: "query",
+      format: "json",
+      titles: `File:${file}`,
+      prop: "imageinfo",
+      iiprop: "url|extmetadata",
+      iiurlwidth: "330", // a size Commons pre-renders; others are rounded up to one
+      iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl",
+    });
+    return fetchJson(`${COMMONS_API}?${info}`, day, reduceImageInfo, wiki);
   },
 };
 

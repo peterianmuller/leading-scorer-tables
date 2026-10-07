@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 
 import {
   formatValue,
+  initials,
   LABELS,
   orderedStatKeys,
   teamLeader,
@@ -98,6 +99,32 @@ describe("teamLeader", () => {
   test("returns null for a pregame team with no players", () => {
     assert.equal(teamLeader({ players: [] }), null);
     assert.equal(teamLeader({}), null);
+  });
+});
+
+describe("initials", () => {
+  test("uses the CDN's first and family names", () => {
+    assert.equal(initials({ name: "LeBron James", firstName: "LeBron", familyName: "James" }), "LJ");
+  });
+
+  test("isn't thrown by a suffix or a multi-part family name", () => {
+    assert.equal(
+      initials({ name: "Jaren Jackson Jr.", firstName: "Jaren", familyName: "Jackson Jr." }),
+      "JJ"
+    );
+    assert.equal(
+      initials({ name: "Shai Gilgeous-Alexander", firstName: "Shai", familyName: "Gilgeous-Alexander" }),
+      "SG"
+    );
+  });
+
+  test("falls back to splitting the full name", () => {
+    assert.equal(initials({ name: "Victor Wembanyama" }), "VW");
+    assert.equal(initials({ name: "Nenê" }), "N");
+  });
+
+  test("shows a question mark when there's no name at all", () => {
+    assert.equal(initials({}), "?");
   });
 });
 
