@@ -317,12 +317,12 @@ describe("HTTP server", () => {
       assert.match(res.body, /<html/i);
     });
 
-    test("serves CSS and JS with the right MIME types", async () => {
-      const css = await get(port, "/style.css");
+    test("serves the built CSS and JS from assets/ with the right MIME types", async () => {
+      const css = await get(port, "/assets/index-fixture.css");
       assert.equal(css.status, 200);
       assert.equal(css.headers["content-type"], "text/css; charset=utf-8");
 
-      const js = await get(port, "/app.js");
+      const js = await get(port, "/assets/index-fixture.js");
       assert.equal(js.status, 200);
       assert.equal(js.headers["content-type"], "text/javascript; charset=utf-8");
     });
