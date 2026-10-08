@@ -7,8 +7,10 @@ import assert from "node:assert/strict";
 import {
   formatValue,
   initials,
+  KEY_STATS,
   LABELS,
   orderedStatKeys,
+  splitStatKeys,
   teamLeader,
 } from "../client/src/lib/stats.js";
 import {
@@ -85,6 +87,25 @@ describe("orderedStatKeys", () => {
 
   test("handles an empty stats object", () => {
     assert.deepEqual(orderedStatKeys({}), []);
+  });
+});
+
+describe("splitStatKeys", () => {
+  test("leads with the key stats in KEY_STATS order, then the rest in LABELS order", () => {
+    const stats = Object.fromEntries(Object.keys(LABELS).map((k) => [k, 0]));
+    const { key, rest } = splitStatKeys(stats);
+    assert.deepEqual(key, KEY_STATS);
+    assert.deepEqual(rest, Object.keys(LABELS).filter((k) => !KEY_STATS.includes(k)));
+  });
+
+  test("skips key stats the CDN left out, and keeps unlabeled stats in the rest", () => {
+    const { key, rest } = splitStatKeys({ zNew: 1, assists: 4, minutes: "PT30M00.00S", points: 20 });
+    assert.deepEqual(key, ["points", "assists"]);
+    assert.deepEqual(rest, ["minutes", "zNew"]);
+  });
+
+  test("has nothing left over when the CDN sent only key stats", () => {
+    assert.deepEqual(splitStatKeys({ points: 20 }).rest, []);
   });
 });
 

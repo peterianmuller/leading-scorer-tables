@@ -55,6 +55,26 @@ export function orderedStatKeys(stats) {
   ];
 }
 
+// What a card shows before "Show all stats": the scoring line, how efficiently
+// it came, the rest of the standard box-score line, and the team's margin with
+// the player on the floor.
+export const KEY_STATS = [
+  "points",
+  "fieldGoalsPercentage",
+  "reboundsTotal",
+  "assists",
+  "plusMinusPoints",
+];
+
+// The key stats the CDN sent, in KEY_STATS order, then everything else in
+// orderedStatKeys order. Key stats lead the full list too, so expanding a
+// card adds rows below the ones already showing instead of reshuffling them.
+export function splitStatKeys(stats) {
+  const key = KEY_STATS.filter((k) => k in stats);
+  const rest = orderedStatKeys(stats).filter((k) => !KEY_STATS.includes(k));
+  return { key, rest };
+}
+
 // Top scorer on one team. Null when the CDN lists no players — pregame box
 // scores carry the teams but an empty roster.
 export function teamLeader(team) {

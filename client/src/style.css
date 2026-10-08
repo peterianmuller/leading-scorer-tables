@@ -235,3 +235,15 @@ tr.points td { font-weight: 600; color: var(--accent); }
 
 .plays { margin-top: 0.75rem; font-size: 0.85rem; }
 .plays summary { cursor: pointer; color: var(--muted); }
+
+/* Reads as a link, not an action: it only changes how much of the card shows. */
+.stat-toggle {
+  margin-top: 0.6rem;
+  padding: 0.25rem 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.stat-toggle:hover { filter: none; color: var(--ink); }
