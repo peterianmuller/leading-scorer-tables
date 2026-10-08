@@ -17,6 +17,15 @@ import {
   landingDate,
   seasonOptions,
 } from "../client/src/lib/schedule.js";
+import {
+  clockLabel,
+  elapsedSeconds,
+  lastPeriod,
+  periodLabel,
+  playedSeconds,
+  pointsAt,
+  scoringFlow,
+} from "../client/src/lib/scoring.js";
 
 // The client reads the viewer's local clock, so dates here are built from
 // local-time parts rather than ISO strings (which parse as UTC and can land
@@ -198,5 +207,85 @@ describe("landingDate", () => {
 
   test("is undefined for an empty schedule", () => {
     assert.equal(landingDate([]), undefined);
+  });
+});
+
+/* -------------------------------- scoring -------------------------------- */
+
+describe("elapsedSeconds", () => {
+  test("counts up from tip-off as the clock counts down", () => {
+    assert.equal(elapsedSeconds(1, "PT12M00.00S"), 0);
+    assert.equal(elapsedSeconds(1, "PT11M39.00S"), 21);
+    assert.equal(elapsedSeconds(3, "PT06M00.00S"), 24 * 60 + 6 * 60);
+  });
+
+  test("keeps tenths of a second", () => {
+    assert.equal(elapsedSeconds(4, "PT00M00.40S"), 48 * 60 - 0.4);
+  });
+
+  test("gives overtime five minutes, not twelve", () => {
+    assert.equal(elapsedSeconds(5, "PT00M00.00S"), 48 * 60 + 5 * 60);
+    assert.equal(elapsedSeconds(6, "PT05M00.00S"), 53 * 60);
+  });
+});
+
+describe("periodLabel / clockLabel", () => {
+  test("names quarters and overtimes", () => {
+    assert.deepEqual([1, 4, 5, 6].map(periodLabel), ["Q1", "Q4", "OT", "2OT"]);
+  });
+
+  test("formats the clock as m:ss, rounding tenths up", () => {
+    assert.equal(clockLabel("PT04M07.00S"), "4:07");
+    assert.equal(clockLabel("PT00M03.20S"), "0:04");
+    assert.equal(clockLabel("PT12M00.00S"), "12:00");
+  });
+});
+
+describe("scoringFlow", () => {
+  const made = (orderNumber, period, clock, personId, pointsTotal) => ({
+    orderNumber, period, clock, personId, pointsTotal,
+    shotResult: "Made", description: `basket ${orderNumber}`,
+  });
+  const actions = [
+    made(30, 2, "PT10M00.00S", 7, 5),
+    made(10, 1, "PT11M00.00S", 7, 2),
+    { orderNumber: 15, period: 1, clock: "PT10M00.00S", personId: 7, shotResult: "Missed" },
+    made(20, 1, "PT09M00.00S", 9, 3),
+    made(25, 1, "PT05M00.00S", 7, 3),
+  ];
+
+  test("starts at zero and follows the player's made baskets in play order", () => {
+    const flow = scoringFlow(actions, 7);
+    assert.deepEqual(
+      flow.map((s) => [s.seconds, s.points]),
+      [[0, 0], [60, 2], [420, 3], [840, 5]]
+    );
+    assert.equal(flow[1].description, "basket 10");
+  });
+
+  test("is just the starting point for a player who never scored", () => {
+    assert.deepEqual(scoringFlow(actions, 1), [{ seconds: 0, points: 0 }]);
+  });
+
+  test("pointsAt reads the total as of a moment", () => {
+    const flow = scoringFlow(actions, 7);
+    assert.equal(pointsAt(flow, 0), 0);
+    assert.equal(pointsAt(flow, 59), 0);
+    assert.equal(pointsAt(flow, 60), 2);
+    assert.equal(pointsAt(flow, 10_000), 5);
+  });
+
+  test("playedSeconds is the furthest point any play reached", () => {
+    assert.equal(playedSeconds(actions), 840);
+    assert.equal(playedSeconds([]), 0);
+  });
+
+  // Seen live: 0012600029's feed closes with { actionType: "game", period: 0 }.
+  test("ignores a closing action stamped period 0", () => {
+    const end = { orderNumber: 99, period: 0, clock: "PT00M00.00S", actionType: "game" };
+    const ot = { ...made(40, 5, "PT01M00.00S", 7, 9) };
+    assert.equal(playedSeconds([...actions, ot, end]), 48 * 60 + 4 * 60);
+    assert.equal(lastPeriod([...actions, ot, end]), 5);
+    assert.equal(lastPeriod([end]), 4);
   });
 });
