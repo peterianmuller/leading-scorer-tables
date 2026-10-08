@@ -1,0 +1,14 @@
+# Render blueprint: one Node web service that builds the React client into
+# dist/ and runs server.js, which serves dist/ and the /api routes. Render
+# sets PORT; server.js listens on it.
+services:
+  - type: web
+    name: leading-scorer-tables
+    runtime: node
+    plan: free
+    # npm ci installs devDependencies here (Vite is one), since NODE_ENV isn't
+    # production during the build.
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
