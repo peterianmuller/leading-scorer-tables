@@ -13,12 +13,7 @@ import {
   splitStatKeys,
   teamLeader,
 } from "../client/src/lib/stats.js";
-import {
-  currentSeason,
-  isFinal,
-  landingDate,
-  seasonOptions,
-} from "../client/src/lib/schedule.js";
+import { currentSeason, isFinal, landingDate, seasonOptions } from "../client/src/lib/schedule.js";
 import {
   clockLabel,
   elapsedSeconds,
@@ -95,11 +90,19 @@ describe("splitStatKeys", () => {
     const stats = Object.fromEntries(Object.keys(LABELS).map((k) => [k, 0]));
     const { key, rest } = splitStatKeys(stats);
     assert.deepEqual(key, KEY_STATS);
-    assert.deepEqual(rest, Object.keys(LABELS).filter((k) => !KEY_STATS.includes(k)));
+    assert.deepEqual(
+      rest,
+      Object.keys(LABELS).filter((k) => !KEY_STATS.includes(k)),
+    );
   });
 
   test("skips key stats the CDN left out, and keeps unlabeled stats in the rest", () => {
-    const { key, rest } = splitStatKeys({ zNew: 1, assists: 4, minutes: "PT30M00.00S", points: 20 });
+    const { key, rest } = splitStatKeys({
+      zNew: 1,
+      assists: 4,
+      minutes: "PT30M00.00S",
+      points: 20,
+    });
     assert.deepEqual(key, ["points", "assists"]);
     assert.deepEqual(rest, ["minutes", "zNew"]);
   });
@@ -134,17 +137,24 @@ describe("teamLeader", () => {
 
 describe("initials", () => {
   test("uses the CDN's first and family names", () => {
-    assert.equal(initials({ name: "LeBron James", firstName: "LeBron", familyName: "James" }), "LJ");
+    assert.equal(
+      initials({ name: "LeBron James", firstName: "LeBron", familyName: "James" }),
+      "LJ",
+    );
   });
 
   test("isn't thrown by a suffix or a multi-part family name", () => {
     assert.equal(
       initials({ name: "Jaren Jackson Jr.", firstName: "Jaren", familyName: "Jackson Jr." }),
-      "JJ"
+      "JJ",
     );
     assert.equal(
-      initials({ name: "Shai Gilgeous-Alexander", firstName: "Shai", familyName: "Gilgeous-Alexander" }),
-      "SG"
+      initials({
+        name: "Shai Gilgeous-Alexander",
+        firstName: "Shai",
+        familyName: "Gilgeous-Alexander",
+      }),
+      "SG",
     );
   });
 
@@ -213,11 +223,7 @@ describe("landingDate", () => {
   });
 
   test("picks the newest date with a finished game", () => {
-    const dates = [
-      day("2026-01-01", 3),
-      day("2026-01-02", 3, 2),
-      day("2026-01-03", 1),
-    ];
+    const dates = [day("2026-01-01", 3), day("2026-01-02", 3, 2), day("2026-01-03", 1)];
     assert.equal(landingDate(dates), "2026-01-02");
   });
 
@@ -264,8 +270,13 @@ describe("periodLabel / clockLabel", () => {
 
 describe("scoringFlow", () => {
   const made = (orderNumber, period, clock, personId, pointsTotal) => ({
-    orderNumber, period, clock, personId, pointsTotal,
-    shotResult: "Made", description: `basket ${orderNumber}`,
+    orderNumber,
+    period,
+    clock,
+    personId,
+    pointsTotal,
+    shotResult: "Made",
+    description: `basket ${orderNumber}`,
   });
   const actions = [
     made(30, 2, "PT10M00.00S", 7, 5),
@@ -279,7 +290,12 @@ describe("scoringFlow", () => {
     const flow = scoringFlow(actions, 7);
     assert.deepEqual(
       flow.map((s) => [s.seconds, s.points]),
-      [[0, 0], [60, 2], [420, 3], [840, 5]]
+      [
+        [0, 0],
+        [60, 2],
+        [420, 3],
+        [840, 5],
+      ],
     );
     assert.equal(flow[1].description, "basket 10");
   });

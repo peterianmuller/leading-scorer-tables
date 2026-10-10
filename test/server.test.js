@@ -60,7 +60,7 @@ describe("resolveGameId", () => {
     for (const bad of ["abc", "123", "00225000660", "0022500066x", "../etc"]) {
       assert.throws(
         () => resolveGameId(params(`gameId=${encodeURIComponent(bad)}`)),
-        (err) => err.status === 400 && err.message.includes(`"${bad}"`)
+        (err) => err.status === 400 && err.message.includes(`"${bad}"`),
       );
     }
   });
@@ -81,7 +81,7 @@ describe("resolveSeason", () => {
     for (const bad of ["2018-19", "2023", "23-24", "2023-2024", "abcd-ef"]) {
       assert.throws(
         () => resolveSeason(params(`season=${bad}`)),
-        (err) => err.status === 400 && err.message.includes(`"${bad}"`)
+        (err) => err.status === 400 && err.message.includes(`"${bad}"`),
       );
     }
   });
@@ -102,9 +102,7 @@ describe("reduceSchedule", () => {
   const schedule = (gameDates) => ({ leagueSchedule: { gameDates } });
 
   test("keeps only what the picker renders and converts dates to ISO", () => {
-    const dates = reduceSchedule(
-      schedule([{ gameDate: "10/21/2025 00:00:00", games: [game()] }])
-    );
+    const dates = reduceSchedule(schedule([{ gameDate: "10/21/2025 00:00:00", games: [game()] }]));
 
     assert.deepEqual(dates, [
       {
@@ -128,16 +126,17 @@ describe("reduceSchedule", () => {
         { gameDate: "10/20/2025 00:00:00", games: [] },
         { gameDate: "10/22/2025 00:00:00" },
         { gameDate: "10/21/2025 00:00:00", games: [game()] },
-      ])
+      ]),
     );
-    assert.deepEqual(dates.map((d) => d.date), ["2025-10-21"]);
+    assert.deepEqual(
+      dates.map((d) => d.date),
+      ["2025-10-21"],
+    );
   });
 
   test("tolerates a missing gameStatusText and an empty payload", () => {
     const [day] = reduceSchedule(
-      schedule([
-        { gameDate: "10/21/2025 00:00:00", games: [game({ gameStatusText: undefined })] },
-      ])
+      schedule([{ gameDate: "10/21/2025 00:00:00", games: [game({ gameStatusText: undefined })] }]),
     );
     assert.equal(day.games[0].statusText, "");
     assert.deepEqual(reduceSchedule({}), []);
@@ -154,7 +153,7 @@ describe("resolvePersonId", () => {
     for (const qs of ["", "personId=", "personId=lebron", "personId=12345678901"]) {
       assert.throws(
         () => resolvePersonId(params(qs)),
-        (err) => err.status === 400 && /personId must be/.test(err.message)
+        (err) => err.status === 400 && /personId must be/.test(err.message),
       );
     }
     assert.throws(() => resolvePersonId(params("personId=lebron")), /got "lebron"/);
@@ -179,7 +178,7 @@ describe("plainText", () => {
   test("strips tags and decodes entities", () => {
     assert.equal(
       plainText('<a href="//flickr.com/x">Erik&nbsp;Drost</a> &amp; &quot;Kev&#39;s&quot;'),
-      'Erik Drost & "Kev\'s"'
+      'Erik Drost & "Kev\'s"',
     );
   });
 
@@ -201,7 +200,7 @@ describe("reduceImageInfo", () => {
           LicenseShortName: { value: "CC BY 2.0" },
           LicenseUrl: { value: "https://creativecommons.org/licenses/by/2.0" },
         },
-      })
+      }),
     );
     assert.deepEqual(body, {
       url: "https://upload.wikimedia.org/a/330px-A.jpg",
@@ -241,7 +240,7 @@ function get(port, path) {
             headers: res.headers,
             body,
             json: () => JSON.parse(body),
-          })
+          }),
         );
       })
       .on("error", reject);
@@ -254,9 +253,7 @@ describe("HTTP server", () => {
 
   // What "the NBA" returns for the next upstream request.
   const upstream = (status, body) =>
-    fetchMock.mock.mockImplementation(
-      async () => new Response(JSON.stringify(body), { status })
-    );
+    fetchMock.mock.mockImplementation(async () => new Response(JSON.stringify(body), { status }));
 
   before(async () => {
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -289,7 +286,7 @@ describe("HTTP server", () => {
       const [call] = fetchMock.mock.calls;
       assert.equal(
         call.arguments[0],
-        `https://cdn.nba.com/static/json/liveData/boxscore/boxscore_${DEFAULT_GAME_ID}.json`
+        `https://cdn.nba.com/static/json/liveData/boxscore/boxscore_${DEFAULT_GAME_ID}.json`,
       );
     });
 
@@ -380,7 +377,7 @@ describe("HTTP server", () => {
       const [call] = fetchMock.mock.calls;
       assert.equal(
         call.arguments[0],
-        "https://stats.nba.com/stats/scheduleleaguev2?LeagueID=00&Season=2025-26"
+        "https://stats.nba.com/stats/scheduleleaguev2?LeagueID=00&Season=2025-26",
       );
     });
 
@@ -399,7 +396,7 @@ describe("HTTP server", () => {
       fetchMock.mock.mockImplementation(async (url) =>
         url.startsWith("https://www.wikidata.org/")
           ? new Response(JSON.stringify(wikidata))
-          : new Response(JSON.stringify(commons), { status: commonsStatus })
+          : new Response(JSON.stringify(commons), { status: commonsStatus }),
       );
 
     const found = {

@@ -59,7 +59,8 @@ export default function ScoringFlow({ gameId, players }) {
       // Carry the last total on to the latest play, so a player who stopped
       // scoring early still has a line that runs to the end.
       const last = flow.at(-1);
-      const drawn = played > last.seconds ? [...flow, { seconds: played, points: last.points }] : flow;
+      const drawn =
+        played > last.seconds ? [...flow, { seconds: played, points: last.points }] : flow;
       return { key: player.personId, slot: i + 1, player, team, flow, drawn, total: last.points };
     });
   }, [actions, players]);
@@ -250,7 +251,7 @@ function endLabels(series, x, y) {
 
 function Tooltip({ seconds, series, left, flip }) {
   const plays = series.flatMap((s) =>
-    s.flow.filter((step) => step.seconds === seconds && step.description)
+    s.flow.filter((step) => step.seconds === seconds && step.description),
   );
   const when = plays[0]
     ? `${periodLabel(plays[0].period)} · ${clockLabel(plays[0].clock)}`

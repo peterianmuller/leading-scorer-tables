@@ -7,26 +7,58 @@
   --accent: #c8102e; /* NBA red */
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
   padding: 2rem 1rem;
   background: var(--bg);
   color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    15px/1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
 }
 
-main { max-width: 960px; margin: 0 auto; }
+main {
+  max-width: 960px;
+  margin: 0 auto;
+}
 
-h1 { margin: 0 0 1rem; font-size: 1.75rem; letter-spacing: -0.01em; }
-h2 { margin: 0; font-size: 1.4rem; }
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.01em;
+}
+h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
 
-.muted { color: var(--muted); margin: 0.25rem 0 0; }
+.muted {
+  color: var(--muted);
+  margin: 0.25rem 0 0;
+}
 
-form, .controls { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
-label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--muted); }
-input, select {
+form,
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+input,
+select {
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -43,9 +75,16 @@ button {
   font: inherit;
   cursor: pointer;
 }
-button:hover { filter: brightness(0.92); }
+button:hover {
+  filter: brightness(0.92);
+}
 
-select { width: auto; max-width: 16rem; background: var(--card); color: inherit; }
+select {
+  width: auto;
+  max-width: 16rem;
+  background: var(--card);
+  color: inherit;
+}
 
 /* The day's games. They wrap into as many rows as they need — a busy Saturday
    runs to a dozen. */
@@ -64,7 +103,10 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   font-size: 0.85rem;
   padding: 0.35rem 0.6rem;
 }
-.game:hover { filter: none; border-color: var(--muted); }
+.game:hover {
+  filter: none;
+  border-color: var(--muted);
+}
 .game.active {
   border-color: var(--accent);
   color: var(--accent);
@@ -75,11 +117,21 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   cursor: default;
   opacity: 0.7;
 }
-.game:disabled:hover { border-color: var(--line); }
+.game:disabled:hover {
+  border-color: var(--line);
+}
 
-#manual { margin-top: 1rem; font-size: 0.9rem; color: var(--muted); }
-#manual summary { cursor: pointer; }
-#manual form { margin-top: 0.5rem; }
+#manual {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+#manual summary {
+  cursor: pointer;
+}
+#manual form {
+  margin-top: 0.5rem;
+}
 
 /* Two cards on a wide screen, stacked on a phone. align-items: start keeps
    each card at its own height instead of stretching the shorter one. */
@@ -91,7 +143,9 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   margin-top: 1.5rem;
 }
 @media (max-width: 720px) {
-  #teams { grid-template-columns: 1fr; }
+  #teams {
+    grid-template-columns: 1fr;
+  }
 }
 
 .team {
@@ -125,7 +179,9 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   align-items: center;
   margin-top: 0.5rem;
 }
-.headshot { display: contents; }
+.headshot {
+  display: contents;
+}
 .headshot img,
 .headshot .initials {
   grid-row: 1;
@@ -135,7 +191,11 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   border: 1px solid var(--line);
 }
 /* Commons crops vary; faces sit in the upper part of nearly all of them. */
-.headshot img { object-fit: cover; object-position: center 20%; background: var(--bg); }
+.headshot img {
+  object-fit: cover;
+  object-position: center 20%;
+  background: var(--bg);
+}
 .headshot .initials {
   display: grid;
   place-items: center;
@@ -145,29 +205,58 @@ select { width: auto; max-width: 16rem; background: var(--card); color: inherit;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-.player-id { grid-row: 1; grid-column: 2; min-width: 0; }
+.player-id {
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+}
 .credit {
   grid-row: 2;
   grid-column: 1 / -1;
   margin-top: 0.5rem;
   font-size: 0.75rem;
 }
-.credit a { color: inherit; }
+.credit a {
+  color: inherit;
+}
 
-.table-wrap { overflow-x: auto; margin-top: 1rem; }
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
 
 table {
   width: 100%;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
-th, td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid var(--line); }
-th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-td:last-child, th:last-child { text-align: right; }
-tbody tr:hover { background: var(--bg); }
-tr.points td { font-weight: 600; color: var(--accent); }
+th,
+td {
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+td:last-child,
+th:last-child {
+  text-align: right;
+}
+tbody tr:hover {
+  background: var(--bg);
+}
+tr.points td {
+  font-weight: 600;
+  color: var(--accent);
+}
 
-#status.error { color: var(--accent); }
+#status.error {
+  color: var(--accent);
+}
 
 /* Scoring flow chart. Series colors are a categorical pair validated for
    color-blind separation and 3:1 contrast on the white card; text stays in
@@ -181,7 +270,10 @@ tr.points td { font-weight: 600; color: var(--accent); }
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.chart-title { margin: 0; font-size: 1rem; }
+.chart-title {
+  margin: 0;
+  font-size: 1rem;
+}
 
 .legend {
   display: flex;
@@ -192,29 +284,93 @@ tr.points td { font-weight: 600; color: var(--accent); }
   list-style: none;
   font-size: 0.85rem;
 }
-.legend li, .tooltip-row { display: flex; align-items: center; gap: 0.4rem; }
-.key { display: inline-block; width: 14px; height: 2px; border-radius: 1px; }
-.key.series-1 { background: var(--series-1); }
-.key.series-2 { background: var(--series-2); }
+.legend li,
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.key {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+}
+.key.series-1 {
+  background: var(--series-1);
+}
+.key.series-2 {
+  background: var(--series-2);
+}
 
-.chart { position: relative; }
-.chart svg { display: block; overflow: visible; }
-.chart .grid { stroke: var(--line); stroke-width: 1; }
-.chart .baseline { stroke: #c3c2b7; stroke-width: 1; }
-.chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.chart .flow { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.chart .flow.series-1 { stroke: var(--series-1); }
-.chart .flow.series-2 { stroke: var(--series-2); }
-.chart .end-label { fill: var(--muted); font-size: 12px; }
-.chart .end-value { fill: var(--ink); font-weight: 600; }
-.chart .leader { stroke: var(--muted); stroke-width: 1; }
-.chart .crosshair { stroke: var(--muted); stroke-width: 1; }
+.chart {
+  position: relative;
+}
+.chart svg {
+  display: block;
+  overflow: visible;
+}
+.chart .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.chart .baseline {
+  stroke: #c3c2b7;
+  stroke-width: 1;
+}
+.chart .tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.chart .flow {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart .flow.series-1 {
+  stroke: var(--series-1);
+}
+.chart .flow.series-2 {
+  stroke: var(--series-2);
+}
+.chart .end-label {
+  fill: var(--muted);
+  font-size: 12px;
+}
+.chart .end-value {
+  fill: var(--ink);
+  font-weight: 600;
+}
+.chart .leader {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.chart .crosshair {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
 /* A surface ring keeps the dot legible where it sits on its own line. */
-.chart .dot { stroke: var(--card); stroke-width: 2; }
-.chart .dot.series-1 { fill: var(--series-1); }
-.chart .dot.series-2 { fill: var(--series-2); }
-.chart .hit { fill: transparent; cursor: crosshair; outline: none; }
-.chart .hit:focus-visible { stroke: var(--muted); stroke-dasharray: 2 3; }
+.chart .dot {
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.chart .dot.series-1 {
+  fill: var(--series-1);
+}
+.chart .dot.series-2 {
+  fill: var(--series-2);
+}
+.chart .hit {
+  fill: transparent;
+  cursor: crosshair;
+  outline: none;
+}
+.chart .hit:focus-visible {
+  stroke: var(--muted);
+  stroke-dasharray: 2 3;
+}
 
 .tooltip {
   position: absolute;
@@ -228,13 +384,30 @@ tr.points td { font-weight: 600; color: var(--accent); }
   font-size: 0.8rem;
   pointer-events: none;
 }
-.tooltip p { margin: 0; }
-.tooltip-when { margin-bottom: 0.25rem !important; font-size: 0.75rem; }
-.tooltip-row strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
-.tooltip-play { margin-top: 0.35rem !important; font-size: 0.75rem; }
+.tooltip p {
+  margin: 0;
+}
+.tooltip-when {
+  margin-bottom: 0.25rem !important;
+  font-size: 0.75rem;
+}
+.tooltip-row strong {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+.tooltip-play {
+  margin-top: 0.35rem !important;
+  font-size: 0.75rem;
+}
 
-.plays { margin-top: 0.75rem; font-size: 0.85rem; }
-.plays summary { cursor: pointer; color: var(--muted); }
+.plays {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+.plays summary {
+  cursor: pointer;
+  color: var(--muted);
+}
 
 /* Reads as a link, not an action: it only changes how much of the card shows. */
 .stat-toggle {
@@ -246,4 +419,7 @@ tr.points td { font-weight: 600; color: var(--accent); }
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.stat-toggle:hover { filter: none; color: var(--ink); }
+.stat-toggle:hover {
+  filter: none;
+  color: var(--ink);
+}

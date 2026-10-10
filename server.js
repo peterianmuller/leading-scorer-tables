@@ -90,7 +90,7 @@ export async function fetchJson(
   url,
   ttlMs,
   transform = (body) => body,
-  { headers = HEADERS, upstream = "NBA" } = {}
+  { headers = HEADERS, upstream = "NBA" } = {},
 ) {
   const cached = cache.get(url);
   if (cached && Date.now() - cached.at < ttlMs) {
@@ -107,7 +107,7 @@ export async function fetchJson(
       `${upstream} returned ${res.status} for ${new URL(url).pathname}. ` +
         (res.status === 403 && upstream === "NBA"
           ? "Either the request was blocked or that game has no live file."
-          : "")
+          : ""),
     );
     err.status = res.status === 404 ? 404 : 502;
     throw err;
@@ -126,7 +126,7 @@ export function resolveGameId(params) {
     // Echo what came in. An error that hides its input costs you an hour.
     const err = new Error(
       `gameId must be 10 digits, got "${gameId}" (${gameId.length} chars). ` +
-        `NBA.com IDs look like 0022500002; ESPN IDs won't work.`
+        `NBA.com IDs look like 0022500002; ESPN IDs won't work.`,
     );
     err.status = 400;
     throw err;
@@ -149,7 +149,7 @@ export function resolveSeason(params) {
 
   if (!match || Number(match[1]) < EARLIEST_SEASON) {
     const err = new Error(
-      `season must look like 2025-26 and start at ${EARLIEST_SEASON}, got "${season}".`
+      `season must look like 2025-26 and start at ${EARLIEST_SEASON}, got "${season}".`,
     );
     err.status = 400;
     throw err;
@@ -187,7 +187,7 @@ export function resolvePersonId(params) {
   if (!PERSON_ID.test(personId)) {
     const err = new Error(
       `personId must be an NBA.com player ID of up to 10 digits, got "${personId}". ` +
-        `LeBron James is 2544.`
+        `LeBron James is 2544.`,
     );
     err.status = 400;
     throw err;
@@ -238,8 +238,7 @@ export function reduceImageInfo(payload) {
 
 export const routes = {
   // Today's games, scores, and status. Empty during the offseason.
-  "/api/scoreboard": () =>
-    fetchJson(`${BASE_URL}/scoreboard/todaysScoreboard_00.json`, 20_000),
+  "/api/scoreboard": () => fetchJson(`${BASE_URL}/scoreboard/todaysScoreboard_00.json`, 20_000),
 
   // /api/boxscore  or  /api/boxscore?gameId=0022500066
   "/api/boxscore": (params) => {
@@ -256,7 +255,7 @@ export const routes = {
     const dates = await fetchJson(
       `${STATS_URL}/scheduleleaguev2?LeagueID=00&Season=${season}`,
       6 * 60 * 60 * 1000,
-      reduceSchedule
+      reduceSchedule,
     );
     return { season, dates };
   },
@@ -321,9 +320,7 @@ async function serveStatic(pathname, res) {
 
   if (!file.startsWith(STATIC_DIR + path.sep) || !type) {
     res.writeHead(404, { "Content-Type": "application/json" });
-    return res.end(
-      JSON.stringify({ error: "Not found", routes: Object.keys(routes) })
-    );
+    return res.end(JSON.stringify({ error: "Not found", routes: Object.keys(routes) }));
   }
 
   try {

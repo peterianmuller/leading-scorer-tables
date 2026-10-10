@@ -136,8 +136,8 @@ export default function App() {
 
         {game && (
           <p className="muted">
-            {game.awayTeam.teamTricode} {game.awayTeam.score} @{" "}
-            {game.homeTeam.teamTricode} {game.homeTeam.score} · {game.gameStatusText}
+            {game.awayTeam.teamTricode} {game.awayTeam.score} @ {game.homeTeam.teamTricode}{" "}
+            {game.homeTeam.score} · {game.gameStatusText}
           </p>
         )}
       </header>

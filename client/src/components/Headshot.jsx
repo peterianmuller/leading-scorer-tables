@@ -20,17 +20,12 @@ export default function Headshot({ player }) {
     };
   }, [player.personId]);
 
-  const data =
-    photo.personId === player.personId && broken !== player.personId ? photo.data : null;
+  const data = photo.personId === player.personId && broken !== player.personId ? photo.data : null;
 
   return (
     <figure className="headshot">
       {data ? (
-        <img
-          src={data.url}
-          alt={player.name}
-          onError={() => setBroken(player.personId)}
-        />
+        <img src={data.url} alt={player.name} onError={() => setBroken(player.personId)} />
       ) : (
         <div className="initials" aria-hidden="true">
           {initials(player)}
