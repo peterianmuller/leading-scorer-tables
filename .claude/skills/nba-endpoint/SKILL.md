@@ -12,12 +12,12 @@ the server, and no route that calls `fetch` directly.
 
 ## Pick the upstream
 
-| Upstream | Constant | Use it for |
-| --- | --- | --- |
-| `https://cdn.nba.com/static/json/liveData` | `BASE_URL` | Per-game files: `boxscore/boxscore_{gameId}.json`, `playbyplay/playbyplay_{gameId}.json`, and `scoreboard/todaysScoreboard_00.json` |
-| `https://stats.nba.com/stats` | `STATS_URL` | Anything keyed by season or that needs query params, e.g. `scheduleleaguev2?LeagueID=00&Season=2025-26` |
+| Upstream                                   | Constant    | Use it for                                                                                                                          |
+| ------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `https://cdn.nba.com/static/json/liveData` | `BASE_URL`  | Per-game files: `boxscore/boxscore_{gameId}.json`, `playbyplay/playbyplay_{gameId}.json`, and `scoreboard/todaysScoreboard_00.json` |
+| `https://stats.nba.com/stats`              | `STATS_URL` | Anything keyed by season or that needs query params, e.g. `scheduleleaguev2?LeagueID=00&Season=2025-26`                             |
 
-- The CDN only publishes the *upcoming* season's schedule. During the offseason
+- The CDN only publishes the _upcoming_ season's schedule. During the offseason
   every game in it is unplayed, which is why the schedule comes from
   stats.nba.com instead.
 - liveData box scores exist back to 2019-20 only (`EARLIEST_SEASON`). Anything
@@ -29,7 +29,7 @@ the server, and no route that calls `fetch` directly.
 
 `fetchJson` always sends `HEADERS` (browser `User-Agent`, `Referer` and
 `Origin` of nba.com). Without them the bot filter returns **403**, not 401,
-which looks like a bad path. The CDN *also* returns 403 for files that don't
+which looks like a bad path. The CDN _also_ returns 403 for files that don't
 exist (for example, a game with no live file yet), so a 403 alone doesn't tell
 you which problem you have. If a new route 403s, check the headers first, then
 the path.

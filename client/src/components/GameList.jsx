@@ -26,7 +26,7 @@ export default function GameList({ games, activeGameId, onSelect }) {
           >
             {game.away.tricode} @ {game.home.tricode}
           </button>
-        )
+        ),
       )}
     </div>
   );

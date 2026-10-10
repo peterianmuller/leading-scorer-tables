@@ -91,6 +91,7 @@ export function teamLeader(team) {
 // name, so a suffix like "Jr." or a three-part name doesn't pick the wrong letter.
 export function initials(player) {
   const first = player.firstName?.trim() || player.name?.trim().split(/\s+/)[0] || "";
-  const last = player.familyName?.trim() || player.name?.trim().split(/\s+/).slice(1).join(" ") || "";
+  const last =
+    player.familyName?.trim() || player.name?.trim().split(/\s+/).slice(1).join(" ") || "";
   return (first.charAt(0) + last.charAt(0)).toUpperCase() || "?";
 }

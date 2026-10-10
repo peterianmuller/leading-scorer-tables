@@ -41,9 +41,7 @@ export function scoringFlow(actions, personId) {
   const baskets = actions
     .filter(
       (a) =>
-        a.personId === personId &&
-        a.shotResult === "Made" &&
-        typeof a.pointsTotal === "number"
+        a.personId === personId && a.shotResult === "Made" && typeof a.pointsTotal === "number",
     )
     .sort((a, b) => a.orderNumber - b.orderNumber);
 
