@@ -423,3 +423,87 @@ tr.points td {
   filter: none;
   color: var(--ink);
 }
+
+/* Shot charts: one half court per player, side by side like the cards below,
+   stacked on a phone. Each court takes its player's series color. */
+.courts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 720px) {
+  .courts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.court {
+  margin: 0;
+  min-width: 0;
+}
+.court.series-1 {
+  --series: var(--series-1);
+}
+.court.series-2 {
+  --series: var(--series-2);
+}
+.court figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.court-line {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.court-wrap {
+  position: relative;
+}
+.court-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  outline: none;
+}
+.court-wrap svg:focus-visible {
+  box-shadow: 0 0 0 2px var(--muted);
+  border-radius: 4px;
+}
+
+/* Strokes stay the same pixel width however far the court is scaled. */
+.court-lines * {
+  fill: none;
+  stroke: #c3c2b7;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.shot-made {
+  fill: var(--series);
+  stroke: var(--card); /* surface ring, so overlapping makes stay distinct */
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.shot-missed {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.shot-focus {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* Legend glyphs are in ink: on the courts, color already says whose shot. */
+.legend-mark {
+  --series: var(--ink);
+  width: 12px;
+  height: 12px;
+}

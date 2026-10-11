@@ -23,6 +23,7 @@ import {
   pointsAt,
   scoringFlow,
 } from "../client/src/lib/scoring.js";
+import { nearestShot, playerShots, shootingLine, shotLabel } from "../client/src/lib/shots.js";
 
 // The client reads the viewer's local clock, so dates here are built from
 // local-time parts rather than ISO strings (which parse as UTC and can land
@@ -324,5 +325,77 @@ describe("scoringFlow", () => {
     assert.equal(playedSeconds([...actions, ot, end]), 48 * 60 + 4 * 60);
     assert.equal(lastPeriod([...actions, ot, end]), 5);
     assert.equal(lastPeriod([end]), 4);
+  });
+});
+
+/* --------------------------------- shots --------------------------------- */
+
+describe("playerShots", () => {
+  const shot = (orderNumber, personId, actionType, shotResult, xLegacy, yLegacy) => ({
+    orderNumber,
+    personId,
+    actionType,
+    shotResult,
+    xLegacy,
+    yLegacy,
+    isFieldGoal: 1,
+    shotDistance: Math.hypot(xLegacy, yLegacy) / 10,
+    period: 1,
+    clock: "PT10M00.00S",
+    description: `shot ${orderNumber}`,
+  });
+  const actions = [
+    shot(30, 7, "3pt", "Missed", 0, 250),
+    shot(10, 7, "2pt", "Made", -60, 125),
+    shot(20, 9, "2pt", "Made", 0, 10),
+    { orderNumber: 25, personId: 7, actionType: "freethrow", shotResult: "Made", isFieldGoal: 0 },
+    { orderNumber: 26, personId: 7, actionType: "heave", isFieldGoal: 0, xLegacy: null },
+    { orderNumber: 27, actionType: "rebound" }, // no personId at all, as some feeds send
+  ];
+
+  test("keeps the player's field goal attempts, in play order", () => {
+    const shots = playerShots(actions, 7);
+    assert.deepEqual(
+      shots.map((s) => [s.x, s.y, s.made, s.three]),
+      [
+        [-60, 125, true, false],
+        [0, 250, false, true],
+      ],
+    );
+    assert.equal(shots[0].description, "shot 10");
+  });
+
+  test("leaves out free throws and heaves, as the box score's FGA does", () => {
+    assert.equal(playerShots(actions, 7).length, 2);
+  });
+
+  test("shootingLine adds them up like the box score", () => {
+    assert.deepEqual(shootingLine(playerShots(actions, 7)), { fgm: 1, fga: 2, tpm: 0, tpa: 1 });
+    assert.deepEqual(shootingLine([]), { fgm: 0, fga: 0, tpm: 0, tpa: 0 });
+  });
+});
+
+describe("shotLabel", () => {
+  test("rounds down to whole feet, matching the play descriptions", () => {
+    assert.equal(shotLabel({ distance: 13.83, three: false }), "13 ft 2PT");
+    assert.equal(shotLabel({ distance: 24.9, three: true }), "24 ft 3PT");
+  });
+});
+
+describe("nearestShot", () => {
+  const shots = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 100, y: 100 },
+  ];
+
+  test("picks the closest shot within the radius", () => {
+    assert.equal(nearestShot(shots, 7, 0, 20), 1);
+    assert.equal(nearestShot(shots, 2, 1, 20), 0);
+  });
+
+  test("returns -1 when nothing is that close", () => {
+    assert.equal(nearestShot(shots, 50, 50, 20), -1);
+    assert.equal(nearestShot([], 0, 0, 20), -1);
   });
 });
