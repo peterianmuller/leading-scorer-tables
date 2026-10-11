@@ -10,7 +10,8 @@
     "start": "node server.js",
     "test": "node --test \"test/*.test.js\"",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "dependencies": {
     "d3-scale": "^4.0.2",
@@ -20,7 +21,12 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "prettier": "3.9.9",
     "vite": "^8.3.1"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
