@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "d3-scale";
 import { curveStepAfter, line } from "d3-shape";
-import { fetchPlayByPlay } from "../lib/api.js";
 import {
   clockLabel,
   elapsedSeconds,
@@ -20,24 +19,15 @@ const LABEL_GAP = 16; // closest two end labels may sit, in px
 // Each leading scorer's running points total across the game, as a step line:
 // totals only change when a basket drops. Hover or arrow-key along it to read
 // both players' totals at any basket. d3 does the math; React draws the SVG.
-export default function ScoringFlow({ gameId, players }) {
-  // Tagged with the gameId it belongs to, so switching games never draws the
-  // previous game's lines against the new one's players.
-  const [pbp, setPbp] = useState({ gameId: null, actions: null, error: null });
+// `pbp` comes from usePlayByPlay.
+export default function ScoringFlow({ pbp, players }) {
+  const { actions, error } = pbp;
   const [width, setWidth] = useState(0);
   const [focus, setFocus] = useState(null); // index into `moments`
   const wrap = useRef(null);
 
-  useEffect(() => {
-    let current = true;
-    setFocus(null);
-    fetchPlayByPlay(gameId)
-      .then((body) => current && setPbp({ gameId, actions: body.game.actions, error: null }))
-      .catch((err) => current && setPbp({ gameId, actions: null, error: err.message }));
-    return () => {
-      current = false;
-    };
-  }, [gameId]);
+  // A new game's baskets fall at different moments, so drop the old focus.
+  useEffect(() => setFocus(null), [actions]);
 
   // The SVG is drawn at its real pixel width rather than scaled through a
   // viewBox, so the axis text stays the same size on a phone.
@@ -48,8 +38,6 @@ export default function ScoringFlow({ gameId, players }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  const actions = pbp.gameId === gameId ? pbp.actions : null;
 
   const series = useMemo(() => {
     if (!actions) return [];
@@ -74,11 +62,11 @@ export default function ScoringFlow({ gameId, players }) {
 
   const heading = <h3 className="chart-title">Scoring flow</h3>;
 
-  if (pbp.gameId === gameId && pbp.error) {
+  if (error) {
     return (
       <section className="chart-card">
         {heading}
-        <p className="muted">No play-by-play for this game: {pbp.error}</p>
+        <p className="muted">No play-by-play for this game: {error}</p>
       </section>
     );
   }
