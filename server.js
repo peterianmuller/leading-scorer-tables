@@ -202,10 +202,18 @@ export function pickWikidataImage(payload) {
   return page?.pageprops?.page_image_free ?? null;
 }
 
+// An element styled display: none, with everything inside it. Commons'
+// "Unknown author" template repeats the name in one of these, which would
+// otherwise read "Unknown authorUnknown author" once the tags are gone.
+const HIDDEN_ELEMENT =
+  /<(\w+)\b[^>]*\bstyle\s*=\s*["'][^"']*display\s*:\s*none[^>]*>[\s\S]*?<\/\1>/gi;
+
 // Commons' Artist field is HTML, usually a link to the photographer's profile.
-// The client renders text, so tags go and the common entities are decoded.
+// The client renders text, so hidden elements and tags go and the common
+// entities are decoded.
 export function plainText(html) {
   return html
+    .replace(HIDDEN_ELEMENT, "")
     .replace(/<[^>]*>/g, "")
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&quot;/g, '"')

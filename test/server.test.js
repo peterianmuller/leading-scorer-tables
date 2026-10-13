@@ -185,6 +185,23 @@ describe("plainText", () => {
   test("decodes &amp; last so an escaped entity stays literal", () => {
     assert.equal(plainText("&amp;lt;"), "&lt;");
   });
+
+  // Verbatim from File:Jalen-Johnson.jpg, Commons' "Unknown author" template.
+  test("drops text hidden with display: none", () => {
+    assert.equal(
+      plainText('Unknown author<span style="display: none;">Unknown author</span>'),
+      "Unknown author",
+    );
+  });
+
+  test("drops hidden elements however the style is written, and keeps what follows", () => {
+    assert.equal(
+      plainText(
+        "<a href='x'>Kev</a><div class='a' style='color:red;display:none'>dup</div> (Flickr)",
+      ),
+      "Kev (Flickr)",
+    );
+  });
 });
 
 describe("reduceImageInfo", () => {
