@@ -294,35 +294,6 @@ tr.points td {
   font-size: 1rem;
 }
 
-/* A chart heading that opens its card: the button reads as the heading text,
-   with a chevron that turns down when the card is open. */
-.disclosure {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.disclosure::before {
-  content: "";
-  width: 0.45rem;
-  height: 0.45rem;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(-45deg);
-  transition: transform 0.15s;
-}
-.disclosure[aria-expanded="true"]::before {
-  transform: rotate(45deg);
-}
-.disclosure:hover {
-  color: var(--accent);
-}
-
 .legend {
   display: flex;
   flex-wrap: wrap;
