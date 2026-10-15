@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { fetchBoxscore, fetchSchedule } from "./lib/api.js";
 import { currentSeason, dateLabel, isFinal, landingDate, seasonOptions } from "./lib/schedule.js";
 import GameList from "./components/GameList.jsx";
-import ManualLoad from "./components/ManualLoad.jsx";
 import Matchup from "./components/Matchup.jsx";
 import { parseView, viewSearch } from "./lib/view.js";
 
@@ -56,8 +55,7 @@ export default function App() {
     else window.history.replaceState(null, "", url);
   }
 
-  // Picking a game from the list or by ID. A typed-in ID can be from any date;
-  // it's highlighted only if it happens to be on the one showing.
+  // Picking a game from the list.
   function openGame(gameId) {
     setActiveGameId(gameId);
     recordView({ season, date, gameId }, "push");
@@ -156,15 +154,6 @@ export default function App() {
         </div>
 
         <GameList games={games} activeGameId={activeGameId} onSelect={openGame} />
-
-        <ManualLoad onLoad={openGame} />
-
-        {game && (
-          <p className="muted">
-            {game.awayTeam.teamTricode} {game.awayTeam.score} @ {game.homeTeam.teamTricode}{" "}
-            {game.homeTeam.score} · {game.gameStatusText}
-          </p>
-        )}
       </header>
 
       {game && <Matchup game={game} />}
