@@ -6,9 +6,9 @@ import ShotCharts from "./ShotChart.jsx";
 import TeamCard from "./TeamCard.jsx";
 import usePlayByPlay from "./usePlayByPlay.js";
 
-// Both teams' leading scorers: how their points built up over the game, where
-// they shot from, then their stat lines side by side, away first so everything
-// reads in the same order as the matchup line.
+// Both teams' leading scorers: their stat lines side by side, then how their
+// points built up over the game and where they shot from, away first so
+// everything reads in the same order as the matchup line.
 export default function Matchup({ game }) {
   const away = teamLeader(game.awayTeam);
   const home = teamLeader(game.homeTeam);
@@ -44,12 +44,6 @@ export default function Matchup({ game }) {
   // no single top scorer to point at.
   return (
     <>
-      {charted.length > 0 && (
-        <>
-          <ScoringFlow pbp={pbp} players={charted} />
-          <ShotCharts pbp={pbp} players={charted} />
-        </>
-      )}
       <section id="teams">
         <TeamCard
           team={game.awayTeam}
@@ -66,6 +60,12 @@ export default function Matchup({ game }) {
           periods={periods}
         />
       </section>
+      {charted.length > 0 && (
+        <>
+          <ScoringFlow pbp={pbp} players={charted} />
+          <ShotCharts pbp={pbp} players={charted} />
+        </>
+      )}
     </>
   );
 }
