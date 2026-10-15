@@ -87,6 +87,9 @@ export default function App() {
   }
 
   useEffect(() => {
+    // Fetching on mount is what an effect is for; the state it sets up front
+    // is the same "Loading…" the page already starts in.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     showSeason(season);
     // Runs once on mount; later season changes go through the select's handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "d3-scale";
 import { curveStepAfter, line } from "d3-shape";
 import {
@@ -24,10 +24,15 @@ export default function ScoringFlow({ pbp, players }) {
   const { actions, error } = pbp;
   const [width, setWidth] = useState(0);
   const [focus, setFocus] = useState(null); // index into `moments`
+  const [focusActions, setFocusActions] = useState(actions);
   const wrap = useRef(null);
 
   // A new game's baskets fall at different moments, so drop the old focus.
-  useEffect(() => setFocus(null), [actions]);
+  // Done during render so the stale focus never draws against the new game.
+  if (focusActions !== actions) {
+    setFocusActions(actions);
+    setFocus(null);
+  }
 
   // The SVG is drawn at its real pixel width rather than scaled through a
   // viewBox, so the axis text stays the same size on a phone.
