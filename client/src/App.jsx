@@ -7,11 +7,14 @@ import { currentSeason, dateLabel, isFinal, landingDate, seasonOptions } from ".
 import GameList from "./components/GameList.jsx";
 import ManualLoad from "./components/ManualLoad.jsx";
 import Matchup from "./components/Matchup.jsx";
+import { parseView, viewSearch } from "./lib/view.js";
 
 const SEASONS = seasonOptions();
 
 export default function App() {
-  const [season, setSeason] = useState(currentSeason);
+  const [season, setSeason] = useState(
+    () => parseView(window.location.search, SEASONS).season ?? currentSeason(),
+  );
   const [dates, setDates] = useState([]);
   const [date, setDate] = useState("");
   const [activeGameId, setActiveGameId] = useState(null);
@@ -42,21 +45,44 @@ export default function App() {
     }
   }
 
-  function showDate(days, iso) {
+  // Keeps the URL in step with the view, so it can be shared or bookmarked. A
+  // click "push"es a history entry for the back button; restoring a view from
+  // the URL "replace"s, which only tidies up whatever the URL got wrong.
+  function recordView(view, history) {
+    const search = viewSearch(view);
+    if (search === window.location.search) return;
+    const url = window.location.pathname + search;
+    if (history === "push") window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  }
+
+  // Picking a game from the list or by ID. A typed-in ID can be from any date;
+  // it's highlighted only if it happens to be on the one showing.
+  function openGame(gameId) {
+    setActiveGameId(gameId);
+    recordView({ season, date, gameId }, "push");
+    loadGame(gameId);
+  }
+
+  // `gameId` opens that game instead of the date's first, for a linked view.
+  function showDate(season, days, iso, { gameId, history = "push" } = {}) {
     const day = days.find((d) => d.date === iso);
     if (!day) return;
     setDate(iso);
 
     // Land on a game rather than an empty page — the first one that was played.
-    const opener = day.games.find(isFinal);
-    setActiveGameId(opener?.gameId ?? null);
-    if (opener) return loadGame(opener.gameId);
+    const open = gameId ?? day.games.find(isFinal)?.gameId;
+    setActiveGameId(open ?? null);
+    recordView({ season, date: iso, gameId: open }, history);
+    if (open) return loadGame(open);
 
     latest.current++;
     showStatus("No finished games on this date yet.");
   }
 
-  async function showSeason(next) {
+  // `want` names a date and game to land on instead of the usual ones, plus how
+  // to record the view in history (see showDate).
+  async function showSeason(next, { date: wantDate, ...want } = {}) {
     setSeason(next);
     let days = schedules.current.get(next);
 
@@ -77,21 +103,24 @@ export default function App() {
     }
 
     setDates(days);
-    showDate(days, landingDate(days));
+    const landing = days.some((d) => d.date === wantDate) ? wantDate : landingDate(days);
+    showDate(next, days, landing, want);
   }
 
-  function loadManual(gameId) {
-    // A hand-typed ID is usually off the current date, so drop the highlight.
-    setActiveGameId(null);
-    loadGame(gameId);
+  // Shows whatever the URL names: on first load, and on back/forward.
+  function restoreView() {
+    const view = parseView(window.location.search, SEASONS);
+    return showSeason(view.season ?? currentSeason(), { ...view, history: "replace" });
   }
 
   useEffect(() => {
     // Fetching on mount is what an effect is for; the state it sets up front
     // is the same "Loading…" the page already starts in.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    showSeason(season);
-    // Runs once on mount; later season changes go through the select's handler.
+    restoreView();
+    window.addEventListener("popstate", restoreView);
+    return () => window.removeEventListener("popstate", restoreView);
+    // Runs once on mount; later changes go through the controls' handlers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -115,7 +144,7 @@ export default function App() {
           </label>
           <label>
             Date
-            <select value={date} onChange={(e) => showDate(dates, e.target.value)}>
+            <select value={date} onChange={(e) => showDate(season, dates, e.target.value)}>
               {dates.map((day) => (
                 <option key={day.date} value={day.date}>
                   {dateLabel(day.date)} · {day.games.length}{" "}
@@ -126,16 +155,9 @@ export default function App() {
           </label>
         </div>
 
-        <GameList
-          games={games}
-          activeGameId={activeGameId}
-          onSelect={(gameId) => {
-            setActiveGameId(gameId);
-            loadGame(gameId);
-          }}
-        />
+        <GameList games={games} activeGameId={activeGameId} onSelect={openGame} />
 
-        <ManualLoad onLoad={loadManual} />
+        <ManualLoad onLoad={openGame} />
 
         {game && (
           <p className="muted">
