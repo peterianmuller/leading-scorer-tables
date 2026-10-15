@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { clockLabel, periodLabel } from "../lib/scoring.js";
 import { nearestShot, playerShots, shootingLine, shotLabel } from "../lib/shots.js";
 
@@ -50,10 +50,15 @@ export default function ShotCharts({ pbp, players }) {
 
 function Court({ player, team, slot, shots }) {
   const [focus, setFocus] = useState(null); // index into `shots`
+  const [focusShots, setFocusShots] = useState(shots);
   const svg = useRef(null);
   const line = useMemo(() => shootingLine(shots ?? []), [shots]);
 
-  useEffect(() => setFocus(null), [shots]);
+  // Done during render so the stale focus never draws against the new shots.
+  if (focusShots !== shots) {
+    setFocusShots(shots);
+    setFocus(null);
+  }
 
   // Pointer position in court units, via the SVG's own transform so it's
   // right at any rendered size.

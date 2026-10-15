@@ -9,6 +9,7 @@
     "build": "vite build",
     "start": "node server.js",
     "test": "node --test \"test/*.test.js\"",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
@@ -20,13 +21,19 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "3.9.9",
     "vite": "^8.3.1"
   },
   "lint-staged": {
+    "*.{js,jsx}": "eslint --no-warn-ignored",
     "*": "prettier --write --ignore-unknown"
   }
 }
