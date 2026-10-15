@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { lastPeriod, scoringFlow } from "../lib/scoring.js";
 import { teamLeader } from "../lib/stats.js";
 import ScoringFlow from "./ScoringFlow.jsx";
 import ShotCharts from "./ShotChart.jsx";
@@ -27,6 +28,18 @@ export default function Matchup({ game }) {
     [game, away, home],
   );
 
+  // Each card's scoring by period, once the play-by-play is in.
+  const { actions } = pbp;
+  const periods = useMemo(() => actions && lastPeriod(actions), [actions]);
+  const awayFlow = useMemo(
+    () => actions && away && scoringFlow(actions, away.personId),
+    [actions, away],
+  );
+  const homeFlow = useMemo(
+    () => actions && home && scoringFlow(actions, home.personId),
+    [actions, home],
+  );
+
   // Flag whichever leader outscored the other. A tie flags neither — there's
   // no single top scorer to point at.
   return (
@@ -38,8 +51,20 @@ export default function Matchup({ game }) {
         </>
       )}
       <section id="teams">
-        <TeamCard team={game.awayTeam} player={away} isLeader={awayPoints > homePoints} />
-        <TeamCard team={game.homeTeam} player={home} isLeader={homePoints > awayPoints} />
+        <TeamCard
+          team={game.awayTeam}
+          player={away}
+          isLeader={awayPoints > homePoints}
+          flow={awayFlow}
+          periods={periods}
+        />
+        <TeamCard
+          team={game.homeTeam}
+          player={home}
+          isLeader={homePoints > awayPoints}
+          flow={homeFlow}
+          periods={periods}
+        />
       </section>
     </>
   );

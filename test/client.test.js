@@ -10,6 +10,7 @@ import {
   KEY_STATS,
   LABELS,
   orderedStatKeys,
+  scoringSummary,
   splitStatKeys,
   teamLeader,
 } from "../client/src/lib/stats.js";
@@ -21,6 +22,8 @@ import {
   periodLabel,
   playedSeconds,
   pointsAt,
+  pointsByHalf,
+  pointsByPeriod,
   scoringFlow,
 } from "../client/src/lib/scoring.js";
 import { nearestShot, playerShots, shootingLine, shotLabel } from "../client/src/lib/shots.js";
@@ -441,5 +444,88 @@ describe("viewSearch", () => {
       "?season=2024-25&date=2025-01-15",
     );
     assert.equal(viewSearch({}), "");
+  });
+});
+
+/* ------------------------------ scoring story ----------------------------- */
+
+describe("pointsByPeriod / pointsByHalf", () => {
+  // Running totals as scoringFlow builds them: 5 in Q1, none in Q2, 3 in Q3,
+  // 4 in Q4 and 2 in overtime.
+  const flow = [
+    { seconds: 0, points: 0 },
+    { period: 1, points: 2 },
+    { period: 1, points: 5 },
+    { period: 3, points: 8 },
+    { period: 4, points: 12 },
+    { period: 5, points: 14 },
+  ];
+
+  test("splits the running total into each period's points", () => {
+    assert.deepEqual(
+      pointsByPeriod(flow, 5).map((p) => p.points),
+      [5, 0, 3, 4, 2],
+    );
+  });
+
+  test("shows a scoreless period as zero, through the last one played", () => {
+    assert.deepEqual(pointsByPeriod([{ seconds: 0, points: 0 }], 4), [
+      { period: 1, points: 0 },
+      { period: 2, points: 0 },
+      { period: 3, points: 0 },
+      { period: 4, points: 0 },
+    ]);
+  });
+
+  test("counts overtime in the second half", () => {
+    assert.deepEqual(pointsByHalf(flow), { first: 5, second: 9 });
+  });
+});
+
+describe("scoringSummary", () => {
+  const stats = {
+    points: 31,
+    fieldGoalsMade: 12,
+    fieldGoalsAttempted: 19,
+    threePointersMade: 3,
+    threePointersAttempted: 8,
+    freeThrowsMade: 4,
+    freeThrowsAttempted: 4,
+  };
+
+  test("gives the shooting line", () => {
+    assert.equal(
+      scoringSummary(stats),
+      "31 points on 12-of-19 shooting, 3-of-8 from three and 4-of-4 at the line.",
+    );
+  });
+
+  test("leaves out shots the player didn't take", () => {
+    const inside = { ...stats, points: 20, threePointersAttempted: 0, freeThrowsAttempted: 0 };
+    assert.equal(scoringSummary(inside), "20 points on 12-of-19 shooting.");
+    const lineOnly = {
+      points: 2,
+      fieldGoalsAttempted: 0,
+      freeThrowsMade: 2,
+      freeThrowsAttempted: 2,
+    };
+    assert.equal(scoringSummary(lineOnly), "2 points, 2-of-2 at the line.");
+    assert.equal(scoringSummary({ points: 1 }), "1 point.");
+  });
+
+  test("says which half the points leaned toward, if either", () => {
+    assert.match(
+      scoringSummary(stats, { first: 12, second: 19 }),
+      /19 of them came after halftime\.$/,
+    );
+    assert.match(
+      scoringSummary(stats, { first: 20, second: 11 }),
+      /20 of them came before halftime\.$/,
+    );
+    assert.match(scoringSummary(stats, { first: 15, second: 16 }), /at the line\.$/);
+    assert.match(
+      scoringSummary(stats, { first: 31, second: 0 }),
+      /All of them came before halftime\.$/,
+    );
   });
 });

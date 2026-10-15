@@ -84,3 +84,29 @@ export function pointsAt(flow, seconds) {
   }
   return points;
 }
+
+// The running total at the end of `period`. Flow steps are in play order, so
+// it's the last one that falls in or before it.
+function pointsThrough(flow, period) {
+  let points = 0;
+  for (const step of flow) {
+    if (step.period > period) break;
+    points = step.points;
+  }
+  return points;
+}
+
+// Points scored in each period from 1 through `last`, overtimes included.
+export function pointsByPeriod(flow, last) {
+  const periods = [];
+  for (let period = 1; period <= last; period++) {
+    periods.push({ period, points: pointsThrough(flow, period) - pointsThrough(flow, period - 1) });
+  }
+  return periods;
+}
+
+// Points before and after halftime. Overtime counts as the second half.
+export function pointsByHalf(flow) {
+  const first = pointsThrough(flow, 2);
+  return { first, second: (flow.at(-1)?.points ?? 0) - first };
+}
