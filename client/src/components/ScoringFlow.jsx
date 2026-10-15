@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { scaleLinear } from "d3-scale";
 import { curveStepAfter, line } from "d3-shape";
 import {
@@ -65,11 +65,14 @@ export default function ScoringFlow({ pbp, players }) {
     return [...times].sort((a, b) => a - b);
   }, [series]);
 
+  const heading = <h3 className="chart-title">Scoring flow</h3>;
+
   if (error) {
     return (
-      <Collapsible>
+      <section className="chart-card">
+        {heading}
         <p className="muted">No play-by-play for this game: {error}</p>
-      </Collapsible>
+      </section>
     );
   }
 
@@ -110,7 +113,8 @@ export default function ScoringFlow({ pbp, players }) {
   }
 
   return (
-    <Collapsible>
+    <section className="chart-card">
+      {heading}
       <ul className="legend">
         {series.map((s) => (
           <li key={s.key}>
@@ -210,34 +214,6 @@ export default function ScoringFlow({ pbp, players }) {
       </div>
 
       <ScoringPlays series={series} />
-    </Collapsible>
-  );
-}
-
-// Closed whenever a game loads, so the player cards lead; the heading opens it.
-// A button inside the heading rather than <details>, so screen readers get
-// both the heading and an expandable control. The chart measures its width
-// once it's shown, so it draws at the right size.
-function Collapsible({ children }) {
-  const [open, setOpen] = useState(false);
-  const body = useId();
-
-  return (
-    <section className="chart-card">
-      <h3 className="chart-title">
-        <button
-          type="button"
-          className="disclosure"
-          aria-expanded={open}
-          aria-controls={body}
-          onClick={() => setOpen((o) => !o)}
-        >
-          Scoring flow
-        </button>
-      </h3>
-      <div id={body} hidden={!open}>
-        {children}
-      </div>
     </section>
   );
 }
