@@ -95,3 +95,38 @@ export function initials(player) {
     player.familyName?.trim() || player.name?.trim().split(/\s+/).slice(1).join(" ") || "";
   return (first.charAt(0) + last.charAt(0)).toUpperCase() || "?";
 }
+
+const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const madeOf = (made, attempted) => `${made}-of-${attempted}`;
+
+// One sentence on how the player got their points, e.g. "31 points on 12-of-19
+// shooting, 3-of-8 from three and 4-of-4 at the line." `half` (from the
+// play-by-play, when it's loaded) adds when they came, if it leaned one way.
+export function scoringSummary(stats, half) {
+  const parts = [];
+  if (stats.fieldGoalsAttempted > 0) {
+    parts.push(`on ${madeOf(stats.fieldGoalsMade, stats.fieldGoalsAttempted)} shooting`);
+  }
+  if (stats.threePointersAttempted > 0) {
+    parts.push(`${madeOf(stats.threePointersMade, stats.threePointersAttempted)} from three`);
+  }
+  if (stats.freeThrowsAttempted > 0) {
+    parts.push(`${madeOf(stats.freeThrowsMade, stats.freeThrowsAttempted)} at the line`);
+  }
+  const how = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
+  // "on …" follows the points directly; a line with no shots needs a comma.
+  const sep = how?.startsWith("on ") ? " " : ", ";
+  let summary = how
+    ? `${count(stats.points, "point")}${sep}${how}.`
+    : `${count(stats.points, "point")}.`;
+
+  // Lopsided means at least 60/40; anything closer is just a steady game.
+  const total = half ? half.first + half.second : 0;
+  const share = (n) => (n === total ? "All" : n);
+  if (total > 0 && half.second >= total * 0.6) {
+    summary += ` ${share(half.second)} of them came after halftime.`;
+  } else if (total > 0 && half.first >= total * 0.6) {
+    summary += ` ${share(half.first)} of them came before halftime.`;
+  }
+  return summary;
+}
