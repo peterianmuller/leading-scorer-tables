@@ -24,6 +24,7 @@ import {
   scoringFlow,
 } from "../client/src/lib/scoring.js";
 import { nearestShot, playerShots, shootingLine, shotLabel } from "../client/src/lib/shots.js";
+import { parseView, viewSearch } from "../client/src/lib/view.js";
 
 // The client reads the viewer's local clock, so dates here are built from
 // local-time parts rather than ISO strings (which parse as UTC and can land
@@ -397,5 +398,48 @@ describe("nearestShot", () => {
   test("returns -1 when nothing is that close", () => {
     assert.equal(nearestShot(shots, 50, 50, 20), -1);
     assert.equal(nearestShot([], 0, 0, 20), -1);
+  });
+});
+
+/* ---------------------------------- view --------------------------------- */
+
+describe("parseView", () => {
+  const seasons = ["2024-25", "2023-24"];
+
+  test("reads the season, date and game from the query string", () => {
+    assert.deepEqual(parseView("?season=2023-24&date=2024-01-15&game=0022300555", seasons), {
+      season: "2023-24",
+      date: "2024-01-15",
+      gameId: "0022300555",
+    });
+  });
+
+  test("drops anything missing or malformed", () => {
+    assert.deepEqual(parseView("", seasons), {
+      season: undefined,
+      date: undefined,
+      gameId: undefined,
+    });
+    assert.deepEqual(parseView("?season=1999-00&date=jan-15&game=123", seasons), {
+      season: undefined,
+      date: undefined,
+      gameId: undefined,
+    });
+  });
+});
+
+describe("viewSearch", () => {
+  test("round-trips through parseView", () => {
+    const view = { season: "2024-25", date: "2025-01-15", gameId: "0022400123" };
+    assert.equal(viewSearch(view), "?season=2024-25&date=2025-01-15&game=0022400123");
+    assert.deepEqual(parseView(viewSearch(view), ["2024-25"]), view);
+  });
+
+  test("leaves out empty parts", () => {
+    assert.equal(
+      viewSearch({ season: "2024-25", date: "2025-01-15" }),
+      "?season=2024-25&date=2025-01-15",
+    );
+    assert.equal(viewSearch({}), "");
   });
 });
