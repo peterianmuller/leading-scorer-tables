@@ -18,8 +18,11 @@ const {
   DEFAULT_GAME_ID,
   pickWikidataImage,
   plainText,
+  reduceCareer,
   reduceImageInfo,
+  reducePlayers,
   reduceSchedule,
+  resultRows,
   resolveGameId,
   resolvePersonId,
   resolveSeason,
@@ -237,6 +240,148 @@ describe("reduceImageInfo", () => {
   test("is null for a missing file", () => {
     assert.equal(reduceImageInfo({ query: { pages: { "-1": { missing: "" } } } }), null);
     assert.equal(reduceImageInfo({}), null);
+  });
+});
+
+/* --------------------------- stats.nba.com tables ------------------------- */
+
+// A stats.nba.com result set: column names, then rows in that order.
+const table = (name, headers, rowSet) => ({ name, headers, rowSet });
+
+describe("resultRows", () => {
+  test("turns the named result set into objects keyed by column", () => {
+    const payload = {
+      resultSets: [
+        table("Other", ["X"], [[9]]),
+        table(
+          "Wanted",
+          ["A", "B"],
+          [
+            [1, 2],
+            [3, 4],
+          ],
+        ),
+      ],
+    };
+    assert.deepEqual(resultRows(payload, "Wanted"), [
+      { A: 1, B: 2 },
+      { A: 3, B: 4 },
+    ]);
+  });
+
+  test("is empty when the set is missing", () => {
+    assert.deepEqual(resultRows({ resultSets: [] }, "Wanted"), []);
+    assert.deepEqual(resultRows({}, "Wanted"), []);
+  });
+});
+
+const allPlayers = (rows) => ({
+  resultSets: [
+    table(
+      "CommonAllPlayers",
+      ["PERSON_ID", "DISPLAY_FIRST_LAST", "FROM_YEAR", "TO_YEAR", "GAMES_PLAYED_FLAG"],
+      rows,
+    ),
+  ],
+});
+
+describe("reducePlayers", () => {
+  test("keeps the ID, name and years of everyone who played, sorted by name", () => {
+    const body = reducePlayers(
+      allPlayers([
+        [2544, "LeBron James", "2003", "2025", "Y"],
+        [1, "Never Played", "2020", "2020", "N"],
+        [76003, "Kareem Abdul-Jabbar", "1969", "1988", "Y"],
+      ]),
+    );
+    assert.deepEqual(body, [
+      { id: 76003, name: "Kareem Abdul-Jabbar", from: 1969, to: 1988 },
+      { id: 2544, name: "LeBron James", from: 2003, to: 2025 },
+    ]);
+  });
+});
+
+const CAREER_COLUMNS = ["PLAYER_ID", "SEASON_ID", "GP", "FGM", "FGA", "REB", "AST", "PTS"];
+const careerStats = (seasons, totals) => ({
+  resultSets: [
+    table("SeasonTotalsRegularSeason", CAREER_COLUMNS, seasons),
+    table(
+      "CareerTotalsRegularSeason",
+      CAREER_COLUMNS.filter((c) => c !== "SEASON_ID"),
+      [totals],
+    ),
+  ],
+});
+const yearOverYear = (rows) => ({
+  resultSets: [table("ByYearPlayerDashboard", ["GROUP_VALUE", "GP", "PLUS_MINUS"], rows)],
+});
+
+describe("reduceCareer", () => {
+  test("averages the key stats per game over the whole career", () => {
+    const body = reduceCareer(
+      careerStats(
+        [
+          [7, "2022-23", 50, 0, 0, 0, 0, 0],
+          [7, "2023-24", 30, 0, 0, 0, 0, 0],
+          [7, "2023-24", 20, 0, 0, 0, 0, 0], // traded mid-season
+        ],
+        [7, 100, 900, 1800, 653, 401, 2345],
+      ),
+      yearOverYear([
+        ["2023-24", 50, 120],
+        ["2022-23", 50, 81],
+      ]),
+    );
+    assert.deepEqual(body, {
+      personId: 7,
+      first: "2022-23",
+      last: "2023-24",
+      gamesPlayed: 100,
+      stats: {
+        points: 23.5,
+        fieldGoalsPercentage: 0.5,
+        reboundsTotal: 6.5,
+        assists: 4,
+        plusMinusPoints: 2,
+      },
+      plusMinusSeasons: { counted: 2, total: 2 },
+    });
+  });
+
+  test("averages plus/minus over only the seasons that tracked it", () => {
+    const body = reduceCareer(
+      careerStats(
+        [
+          [893, "1995-96", 80, 0, 0, 0, 0, 0],
+          [893, "1996-97", 82, 0, 0, 0, 0, 0],
+          [893, "1997-98", 82, 0, 0, 0, 0, 0],
+        ],
+        [893, 244, 2000, 4000, 1500, 1000, 7000],
+      ),
+      yearOverYear([
+        ["1997-98", 82, 400],
+        ["1996-97", 82, 420],
+        ["1995-96", 80, null],
+      ]),
+    );
+    assert.equal(body.stats.plusMinusPoints, 5);
+    assert.deepEqual(body.plusMinusSeasons, { counted: 2, total: 3 });
+  });
+
+  test("leaves stats the league didn't keep null", () => {
+    const body = reduceCareer(
+      careerStats([[77, "1948-49", 60, 0, 0, 0, 0, 0]], [77, 60, 300, 0, null, 120, 900]),
+      yearOverYear([]),
+    );
+    assert.equal(body.stats.points, 15);
+    assert.equal(body.stats.fieldGoalsPercentage, null);
+    assert.equal(body.stats.reboundsTotal, null);
+    assert.equal(body.stats.plusMinusPoints, null);
+    assert.deepEqual(body.plusMinusSeasons, { counted: 0, total: 1 });
+  });
+
+  test("is null for a player with no regular-season games", () => {
+    assert.equal(reduceCareer({ resultSets: [] }, yearOverYear([])), null);
   });
 });
 
@@ -501,6 +646,70 @@ describe("HTTP server", () => {
 
       assert.equal(res.status, 400);
       assert.match(res.json().error, /got "lebron"/);
+      assert.equal(fetchMock.mock.callCount(), 0);
+    });
+  });
+
+  describe("/api/players", () => {
+    test("fetches every player in history and returns them reduced", async () => {
+      upstream(200, allPlayers([[2544, "LeBron James", "2003", "2025", "Y"]]));
+      const res = await get(port, "/api/players");
+
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.json(), [{ id: 2544, name: "LeBron James", from: 2003, to: 2025 }]);
+      assert.equal(
+        fetchMock.mock.calls[0].arguments[0],
+        `https://stats.nba.com/stats/commonallplayers?LeagueID=00&Season=${currentSeason()}&IsOnlyCurrentSeason=0`,
+      );
+    });
+  });
+
+  describe("/api/career", () => {
+    const answer = () =>
+      fetchMock.mock.mockImplementation(
+        async (url) =>
+          new Response(
+            JSON.stringify(
+              url.includes("/playercareerstats")
+                ? careerStats(
+                    [[2544, "2003-04", 10, 0, 0, 0, 0, 0]],
+                    [2544, 10, 100, 200, 70, 60, 270],
+                  )
+                : yearOverYear([["2003-04", 10, -15]]),
+            ),
+          ),
+      );
+
+    test("combines career totals with season plus/minus", async () => {
+      answer();
+      const res = await get(port, "/api/career?personId=2544");
+
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.json().stats, {
+        points: 27,
+        fieldGoalsPercentage: 0.5,
+        reboundsTotal: 7,
+        assists: 6,
+        plusMinusPoints: -1.5,
+      });
+
+      const urls = fetchMock.mock.calls.map((c) => new URL(c.arguments[0]));
+      assert.equal(
+        urls[0].href,
+        "https://stats.nba.com/stats/playercareerstats?PlayerID=2544&PerMode=Totals&LeagueID=00",
+      );
+      assert.equal(urls[1].pathname, "/stats/playerdashboardbyyearoveryear");
+      assert.equal(urls[1].searchParams.get("PlayerID"), "2544");
+      assert.equal(urls[1].searchParams.get("PerMode"), "Totals");
+      assert.equal(urls[1].searchParams.get("MeasureType"), "Base");
+    });
+
+    test("returns 400 without contacting the NBA for a bad personId", async () => {
+      for (const path of ["/api/career", "/api/career?personId=lebron"]) {
+        const res = await get(port, path);
+        assert.equal(res.status, 400);
+        assert.match(res.json().error, /personId/);
+      }
       assert.equal(fetchMock.mock.callCount(), 0);
     });
   });

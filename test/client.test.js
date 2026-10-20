@@ -27,6 +27,7 @@ import {
   scoringFlow,
 } from "../client/src/lib/scoring.js";
 import { nearestShot, playerShots, shootingLine, shotLabel } from "../client/src/lib/shots.js";
+import { careerYears, matchPlayers } from "../client/src/lib/players.js";
 import { parseView, viewSearch } from "../client/src/lib/view.js";
 
 // The client reads the viewer's local clock, so dates here are built from
@@ -409,8 +410,21 @@ describe("nearestShot", () => {
 describe("parseView", () => {
   const seasons = ["2024-25", "2023-24"];
 
-  test("reads the season, date and game from the query string", () => {
+  test("is the landing screen with no params", () => {
+    assert.deepEqual(parseView("", seasons), { view: "home" });
+    assert.deepEqual(parseView("?view=nonsense", seasons), { view: "home" });
+  });
+
+  test("reads the season, date and game for the games view", () => {
+    assert.deepEqual(
+      parseView("?view=games&season=2023-24&date=2024-01-15&game=0022300555", seasons),
+      { view: "games", season: "2023-24", date: "2024-01-15", gameId: "0022300555" },
+    );
+  });
+
+  test("opens games for a link from before the landing screen", () => {
     assert.deepEqual(parseView("?season=2023-24&date=2024-01-15&game=0022300555", seasons), {
+      view: "games",
       season: "2023-24",
       date: "2024-01-15",
       gameId: "0022300555",
@@ -418,32 +432,101 @@ describe("parseView", () => {
   });
 
   test("drops anything missing or malformed", () => {
-    assert.deepEqual(parseView("", seasons), {
+    assert.deepEqual(parseView("?view=games", seasons), {
+      view: "games",
       season: undefined,
       date: undefined,
       gameId: undefined,
     });
     assert.deepEqual(parseView("?season=1999-00&date=jan-15&game=123", seasons), {
+      view: "games",
       season: undefined,
       date: undefined,
       gameId: undefined,
     });
+    assert.deepEqual(parseView("?view=players&player=lebron", seasons), {
+      view: "players",
+      playerId: undefined,
+    });
+  });
+
+  test("reads the player for the players view", () => {
+    assert.deepEqual(parseView("?view=players&player=2544", seasons), {
+      view: "players",
+      playerId: "2544",
+    });
+    assert.deepEqual(parseView("?view=players", seasons), { view: "players", playerId: undefined });
   });
 });
 
 describe("viewSearch", () => {
   test("round-trips through parseView", () => {
-    const view = { season: "2024-25", date: "2025-01-15", gameId: "0022400123" };
-    assert.equal(viewSearch(view), "?season=2024-25&date=2025-01-15&game=0022400123");
-    assert.deepEqual(parseView(viewSearch(view), ["2024-25"]), view);
+    const games = { view: "games", season: "2024-25", date: "2025-01-15", gameId: "0022400123" };
+    assert.equal(viewSearch(games), "?view=games&season=2024-25&date=2025-01-15&game=0022400123");
+    assert.deepEqual(parseView(viewSearch(games), ["2024-25"]), games);
+
+    const players = { view: "players", playerId: "2544" };
+    assert.equal(viewSearch(players), "?view=players&player=2544");
+    assert.deepEqual(parseView(viewSearch(players), ["2024-25"]), players);
   });
 
-  test("leaves out empty parts", () => {
+  test("leaves out empty parts and other views' params", () => {
     assert.equal(
-      viewSearch({ season: "2024-25", date: "2025-01-15" }),
-      "?season=2024-25&date=2025-01-15",
+      viewSearch({ view: "games", season: "2024-25", date: "2025-01-15" }),
+      "?view=games&season=2024-25&date=2025-01-15",
     );
+    assert.equal(viewSearch({ view: "players", season: "2024-25" }), "?view=players");
+    assert.equal(viewSearch({ view: "home" }), "");
     assert.equal(viewSearch({}), "");
+  });
+});
+
+/* -------------------------------- players -------------------------------- */
+
+describe("matchPlayers", () => {
+  const players = [
+    { id: 1, name: "LeBron James", from: 2003, to: 2025 },
+    { id: 2, name: "Bronny James", from: 2024, to: 2025 },
+    { id: 3, name: "Sam Jones", from: 1957, to: 1968 },
+    { id: 4, name: "Mike James", from: 2014, to: 2018 },
+    { id: 5, name: "José Calderón", from: 2005, to: 2018 },
+    { id: 6, name: "Shaquille O'Neal", from: 1992, to: 2010 },
+    { id: 7, name: "Karl-Anthony Towns", from: 2015, to: 2025 },
+    { id: 8, name: "James Harden", from: 2009, to: 2025 },
+  ];
+  const names = (q, limit) => matchPlayers(players, q, limit).map((p) => p.name);
+
+  test("matches the start of any word, ignoring case", () => {
+    assert.deepEqual(names("lebr"), ["LeBron James"]);
+    assert.deepEqual(names("JAM"), ["James Harden", "Bronny James", "LeBron James", "Mike James"]);
+  });
+
+  test("puts names that start with the query first, then the most recent", () => {
+    assert.equal(names("jam")[0], "James Harden");
+    assert.deepEqual(names("j").slice(0, 2), ["James Harden", "José Calderón"]);
+  });
+
+  test("needs every word typed to match", () => {
+    assert.deepEqual(names("l jam"), ["LeBron James"]);
+    assert.deepEqual(names("lebron harden"), []);
+  });
+
+  test("ignores accents, punctuation and hyphens", () => {
+    assert.deepEqual(names("jose calderon"), ["José Calderón"]);
+    assert.deepEqual(names("oneal"), ["Shaquille O'Neal"]);
+    assert.deepEqual(names("anthony"), ["Karl-Anthony Towns"]);
+  });
+
+  test("is empty for a blank query and stops at the limit", () => {
+    assert.deepEqual(names("  "), []);
+    assert.equal(names("j", 2).length, 2);
+  });
+});
+
+describe("careerYears", () => {
+  test("runs from the first season's start to the last one's end", () => {
+    assert.equal(careerYears({ from: 2003, to: 2025 }), "2003–2026");
+    assert.equal(careerYears({ from: 2010, to: 2010 }), "2010–2011");
   });
 });
 

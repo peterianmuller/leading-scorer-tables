@@ -277,6 +277,110 @@ tr.points td {
   color: var(--accent);
 }
 
+/* Landing screen: Games pinned to the top, Players to the bottom, with the
+   space between them. dvh so a phone's browser bars don't push Players off
+   the screen; body padding is 2rem top and bottom. */
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: calc(100dvh - 4rem);
+}
+.landing h1 {
+  margin: 0;
+}
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 1.5rem 1.25rem;
+  border-radius: 10px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: left;
+}
+.mode span {
+  font-size: 0.95rem;
+  font-weight: 400;
+  opacity: 0.9;
+}
+.mode:last-child {
+  margin-top: auto;
+}
+
+.home-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.home-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+/* Player search: the suggestions drop down over whatever is below. */
+.search {
+  position: relative;
+  max-width: 28rem;
+}
+.search label {
+  margin-bottom: 0.25rem;
+}
+.search input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: inherit;
+  font: inherit;
+}
+.search input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.suggestions {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.08);
+}
+.suggestions li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+}
+.suggestions li[aria-selected="true"] {
+  background: var(--bg);
+  color: var(--accent);
+}
+.suggestions .muted {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One card, the width of a game card rather than the whole page. */
+#career {
+  max-width: 470px;
+  margin-top: 1.5rem;
+}
+.footnote {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+}
+
 /* Scoring flow chart. Series colors are a categorical pair validated for
    color-blind separation and 3:1 contrast on the white card; text stays in
    ink colors and a colored key beside it carries identity. */
