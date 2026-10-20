@@ -8,6 +8,8 @@
 //   curl "http://localhost:3000/api/schedule"                     # season's games
 //   curl "http://localhost:3000/api/schedule?season=2023-24"
 //   curl "http://localhost:3000/api/headshot?personId=2544"       # Commons photo
+//   curl "http://localhost:3000/api/players"                      # all-time players
+//   curl "http://localhost:3000/api/career?personId=2544"         # career averages
 //
 // NOTE: still an ES module, so either keep this as server.mjs or add
 // { "type": "module" } to package.json.
@@ -244,6 +246,110 @@ export function reduceImageInfo(payload) {
   };
 }
 
+// stats.nba.com answers in tables: each result set has a `headers` array and
+// a `rowSet` of arrays in that column order. This turns the named set into
+// objects keyed by column, so a reordered or added column can't shift a value.
+export function resultRows(payload, name) {
+  const set = payload.resultSets?.find((s) => s.name === name);
+  if (!set) return [];
+  return set.rowSet.map((row) => Object.fromEntries(set.headers.map((h, i) => [h, row[i]])));
+}
+
+// Every player in league history -> what the search box needs. The raw table
+// carries team codes, slugs and roster flags for ~5,000 players; this keeps
+// the ID, name and active years, and drops anyone who never played a game.
+export function reducePlayers(payload) {
+  return resultRows(payload, "CommonAllPlayers")
+    .filter((p) => p.GAMES_PLAYED_FLAG === "Y")
+    .map((p) => ({
+      id: p.PERSON_ID,
+      name: p.DISPLAY_FIRST_LAST,
+      from: Number(p.FROM_YEAR),
+      to: Number(p.TO_YEAR),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const perGame = (total, games) =>
+  total === null || total === undefined || !games ? null : Math.round((total / games) * 10) / 10;
+
+// Career regular-season totals plus season-by-season plus/minus -> the same
+// five key stats as a box score, as per-game averages. Plus/minus isn't part
+// of the career table, and the NBA only tracked it from 1996-97, so it's
+// averaged over the seasons that have it; `plusMinusSeasons` says how many
+// of the career's seasons that covers. Stats the league didn't keep yet
+// (rebounds before 1950-51, say) come back null.
+export function reduceCareer(career, dashboard) {
+  const [totals] = resultRows(career, "CareerTotalsRegularSeason");
+  if (!totals || !totals.GP) return null;
+
+  // A traded player has a row per team plus a "TOT" row for the season, so
+  // seasons are counted by ID rather than by row.
+  const seasons = [
+    ...new Set(resultRows(career, "SeasonTotalsRegularSeason").map((s) => s.SEASON_ID)),
+  ];
+
+  const tracked = new Map(); // season -> its plus/minus row, first one wins
+  for (const row of resultRows(dashboard, "ByYearPlayerDashboard")) {
+    if (row.PLUS_MINUS !== null && row.PLUS_MINUS !== undefined && !tracked.has(row.GROUP_VALUE)) {
+      tracked.set(row.GROUP_VALUE, row);
+    }
+  }
+  const pm = [...tracked.values()];
+  const pmGames = pm.reduce((sum, r) => sum + r.GP, 0);
+
+  return {
+    personId: totals.PLAYER_ID,
+    first: seasons[0] ?? null,
+    last: seasons.at(-1) ?? null,
+    gamesPlayed: totals.GP,
+    stats: {
+      points: perGame(totals.PTS, totals.GP),
+      fieldGoalsPercentage: totals.FGA ? Math.round((totals.FGM / totals.FGA) * 1000) / 1000 : null,
+      reboundsTotal: perGame(totals.REB, totals.GP),
+      assists: perGame(totals.AST, totals.GP),
+      plusMinusPoints: pmGames
+        ? perGame(
+            pm.reduce((sum, r) => sum + r.PLUS_MINUS, 0),
+            pmGames,
+          )
+        : null,
+    },
+    plusMinusSeasons: { counted: pm.length, total: seasons.length },
+  };
+}
+
+// playerdashboardbyyearoveryear rejects requests that leave out any of its
+// filters, even ones that are blank, so all of them are spelled out here.
+function yearOverYearUrl(personId) {
+  const params = new URLSearchParams({
+    PlayerID: personId,
+    Season: currentSeason(),
+    SeasonType: "Regular Season",
+    PerMode: "Totals",
+    MeasureType: "Base",
+    LeagueID: "00",
+    PlusMinus: "N",
+    PaceAdjust: "N",
+    Rank: "N",
+    LastNGames: "0",
+    Month: "0",
+    OpponentTeamID: "0",
+    Period: "0",
+    DateFrom: "",
+    DateTo: "",
+    GameSegment: "",
+    Location: "",
+    Outcome: "",
+    PORound: "0",
+    SeasonSegment: "",
+    ShotClockRange: "",
+    VsConference: "",
+    VsDivision: "",
+  });
+  return `${STATS_URL}/playerdashboardbyyearoveryear?${params}`;
+}
+
 export const routes = {
   // Today's games, scores, and status. Empty during the offseason.
   "/api/scoreboard": () => fetchJson(`${BASE_URL}/scoreboard/todaysScoreboard_00.json`, 20_000),
@@ -306,6 +412,35 @@ export const routes = {
       iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl",
     });
     return fetchJson(`${COMMONS_API}?${info}`, day, reduceImageInfo, wiki);
+  },
+
+  // /api/players
+  // [{ id, name, from, to }] for everyone who has played an NBA game, for the
+  // player search. Cached for a day: the list only grows when a rookie
+  // debuts, and the client fetches it once per visit.
+  "/api/players": () =>
+    fetchJson(
+      `${STATS_URL}/commonallplayers?LeagueID=00&Season=${currentSeason()}&IsOnlyCurrentSeason=0`,
+      24 * 60 * 60 * 1000,
+      reducePlayers,
+    ),
+
+  // /api/career?personId=2544
+  // { personId, first, last, gamesPlayed, stats, plusMinusSeasons }: career
+  // per-game averages for the five key stats, or null for a player with no
+  // regular-season games. Cached for six hours: an active player's numbers
+  // change at most once a night.
+  "/api/career": async (params) => {
+    const personId = resolvePersonId(params);
+    const ttl = 6 * 60 * 60 * 1000;
+    const [career, dashboard] = await Promise.all([
+      fetchJson(
+        `${STATS_URL}/playercareerstats?PlayerID=${personId}&PerMode=Totals&LeagueID=00`,
+        ttl,
+      ),
+      fetchJson(yearOverYearUrl(personId), ttl),
+    ]);
+    return reduceCareer(career, dashboard);
   },
 };
 

@@ -16,5 +16,10 @@ export const fetchSchedule = (season) =>
 export const fetchPlayByPlay = (gameId) =>
   getJson(`/api/playbyplay?gameId=${encodeURIComponent(gameId)}`);
 
+export const fetchPlayers = () => getJson("/api/players");
+
+export const fetchCareer = (personId) =>
+  getJson(`/api/career?personId=${encodeURIComponent(personId)}`);
+
 export const fetchHeadshot = (personId) =>
   getJson(`/api/headshot?personId=${encodeURIComponent(personId)}`);
