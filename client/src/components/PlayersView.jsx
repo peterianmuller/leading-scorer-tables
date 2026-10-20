@@ -65,16 +65,18 @@ export default function PlayersView({ onHome }) {
   }
 
   const player = players?.find((p) => String(p.id) === playerId);
-  const loaded = career.personId === playerId;
+  // Nobody picked yet is not "loaded": career starts out tagged with a null
+  // personId too, and would otherwise match.
+  const loaded = playerId !== null && career.personId === playerId;
 
   let status = null;
   if (listError) status = { text: `Couldn't load the player list: ${listError}`, error: true };
   else if (!players) status = { text: "Loading players…" };
-  else if (playerId && !player) status = { text: "That player isn't in the NBA's list." };
-  else if (playerId && !loaded) status = { text: "Loading career…" };
-  else if (loaded && career.error) status = { text: career.error, error: true };
-  else if (loaded && !career.data)
-    status = { text: `No regular-season games on record for ${player.name}.` };
+  else if (!playerId) status = null;
+  else if (!player) status = { text: "That player isn't in the NBA's list." };
+  else if (!loaded) status = { text: "Loading career…" };
+  else if (career.error) status = { text: career.error, error: true };
+  else if (!career.data) status = { text: `No regular-season games on record for ${player.name}.` };
 
   return (
     <main>
