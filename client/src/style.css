@@ -284,7 +284,6 @@ tr.points td {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-height: calc(100dvh - 4rem);
 }
 .landing h1 {
   margin: 0;
@@ -305,8 +304,25 @@ tr.points td {
   font-weight: 400;
   opacity: 0.9;
 }
-.mode:last-child {
-  margin-top: auto;
+/* The Players button starts a new section, below the example game. */
+.mode ~ .mode {
+  margin-top: 2rem;
+}
+/* The landing's gap already spaces the examples from their buttons. */
+.landing #teams {
+  margin-top: 0;
+}
+
+.example-careers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 1rem;
+}
+@media (max-width: 720px) {
+  .example-careers {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-link {
