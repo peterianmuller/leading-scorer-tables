@@ -1,16 +1,83 @@
-// The first screen: Games at the top, Players at the bottom.
+// The first screen: Games at the top, Players below, each followed by a
+// sample of what it shows, so there's something to look at before picking.
+
+import { useEffect, useState } from "react";
+import { fetchBoxscore, fetchCareer } from "../lib/api.js";
+import CareerCard from "./CareerCard.jsx";
+import Matchup from "./Matchup.jsx";
+
+// Opening night 2025-26: Warriors at Lakers.
+const EXAMPLE_GAME_ID = "0022500002";
+const EXAMPLE_PLAYERS = [
+  { id: 2544, name: "LeBron James" },
+  { id: 201939, name: "Stephen Curry" },
+];
+
+function ExampleGame() {
+  const [state, setState] = useState({ game: null, error: null });
+
+  useEffect(() => {
+    let current = true;
+    fetchBoxscore(EXAMPLE_GAME_ID)
+      .then((body) => current && setState({ game: body.game, error: null }))
+      .catch((err) => current && setState({ game: null, error: err.message }));
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  if (state.error) return <p className="muted error">Couldn&rsquo;t load the example game.</p>;
+  if (!state.game) return <p className="muted">Loading an example game…</p>;
+  return <Matchup game={state.game} />;
+}
+
+function ExamplePlayers() {
+  // personId -> career, filled in as each answer arrives.
+  const [careers, setCareers] = useState({});
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let current = true;
+    for (const player of EXAMPLE_PLAYERS) {
+      fetchCareer(player.id)
+        .then((data) => current && setCareers((c) => ({ ...c, [player.id]: data })))
+        .catch((err) => current && setError(err.message));
+    }
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  if (error) return <p className="muted error">Couldn&rsquo;t load the example players.</p>;
+  // Wait for both, so the cards don't arrive one at a time in a shifting grid.
+  if (EXAMPLE_PLAYERS.some((p) => !careers[p.id])) {
+    return <p className="muted">Loading example players…</p>;
+  }
+  return (
+    <section className="example-careers">
+      {EXAMPLE_PLAYERS.map((player) => (
+        <CareerCard key={player.id} player={player} career={careers[player.id]} />
+      ))}
+    </section>
+  );
+}
+
 export default function Landing({ onPick }) {
   return (
     <main className="landing">
       <h1>Leading Scorers</h1>
+
       <button type="button" className="mode" onClick={() => onPick("games")}>
         Games
         <span>Each team&rsquo;s leading scorer in any game since 2019-20</span>
       </button>
+      <ExampleGame />
+
       <button type="button" className="mode" onClick={() => onPick("players")}>
         Players
         <span>Career averages for anyone who has played in the NBA</span>
       </button>
+      <ExamplePlayers />
     </main>
   );
 }
