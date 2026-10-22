@@ -65,17 +65,22 @@ function ExamplePlayers() {
 export default function Landing({ onPick }) {
   return (
     <main className="landing">
-      <h1>Leading Scorers</h1>
+      <h1>NBA Stats Soir&eacute;e</h1>
+      <p className="muted intro">
+        Pick any NBA game since 2019-20 to see how each team&rsquo;s leading scorer got their
+        points: their full stat line, how their scoring built up over the game, and where they shot
+        from. Or look up anyone who has played in the league for their career averages.
+      </p>
 
-      <button type="button" className="mode" onClick={() => onPick("games")}>
-        Games
-        <span>Each team&rsquo;s leading scorer in any game since 2019-20</span>
+      <h2 className="section-title">Games</h2>
+      <button type="button" className="open-mode" onClick={() => onPick("games")}>
+        Check out any game since 2019-20
       </button>
       <ExampleGame />
 
-      <button type="button" className="mode" onClick={() => onPick("players")}>
-        Players
-        <span>Career averages for anyone who has played in the NBA</span>
+      <h2 className="section-title">Players</h2>
+      <button type="button" className="open-mode" onClick={() => onPick("players")}>
+        Look up any player&rsquo;s career
       </button>
       <ExamplePlayers />
     </main>
