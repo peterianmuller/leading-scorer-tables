@@ -288,25 +288,23 @@ tr.points td {
 .landing h1 {
   margin: 0;
 }
-.mode {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 1.5rem 1.25rem;
-  border-radius: 10px;
-  font-size: 1.6rem;
-  font-weight: 700;
-  text-align: left;
+.intro {
+  max-width: 40rem;
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
 }
-.mode span {
-  font-size: 0.95rem;
-  font-weight: 400;
-  opacity: 0.9;
+.section-title {
+  margin-top: 0.5rem;
 }
-/* The Players button starts a new section, below the example game. */
-.mode ~ .mode {
+/* Players starts a new section, below the example game. */
+.section-title ~ .section-title {
   margin-top: 2rem;
+}
+/* A section's way in: sized to its text, under the section's heading. */
+.open-mode {
+  align-self: flex-start;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
 }
 /* The landing's gap already spaces the examples from their buttons. */
 .landing #teams {
