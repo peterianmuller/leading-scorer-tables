@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchBoxscore, fetchCareer } from "../lib/api.js";
+import { dateLabel } from "../lib/schedule.js";
 import CareerCard from "./CareerCard.jsx";
 import Matchup from "./Matchup.jsx";
 
@@ -28,7 +29,17 @@ function ExampleGame() {
 
   if (state.error) return <p className="muted error">Couldn&rsquo;t load the example game.</p>;
   if (!state.game) return <p className="muted">Loading an example game…</p>;
-  return <Matchup game={state.game} />;
+  const { gameEt, awayTeam: away, homeTeam: home } = state.game;
+  // Reads like the game's button in the Games view, plus the day it was played.
+  return (
+    <>
+      <p className="muted example-caption">
+        Example game below · {away.teamTricode} {away.score} @ {home.teamTricode} {home.score} ·{" "}
+        {dateLabel(gameEt.slice(0, 10))}
+      </p>
+      <Matchup game={state.game} />
+    </>
+  );
 }
 
 function ExamplePlayers() {
