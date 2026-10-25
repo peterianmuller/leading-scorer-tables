@@ -6,6 +6,7 @@ import { fetchBoxscore, fetchCareer } from "../lib/api.js";
 import { dateLabel } from "../lib/schedule.js";
 import CareerCard from "./CareerCard.jsx";
 import Matchup from "./Matchup.jsx";
+import SwishShot from "./SwishShot.jsx";
 
 // Opening night 2025-26: Warriors at Lakers.
 const EXAMPLE_GAME_ID = "0022500002";
@@ -76,6 +77,7 @@ function ExamplePlayers() {
 export default function Landing({ onPick }) {
   return (
     <main className="landing">
+      <SwishShot />
       <h1>NBA Stats Soir&eacute;e</h1>
       <p className="muted intro">
         Pick any NBA game since 2019-20 to see how each team&rsquo;s leading scorer got their

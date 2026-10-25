@@ -288,6 +288,136 @@ tr.points td {
 .landing h1 {
   margin: 0;
 }
+
+/* The swish shot over the title. The ball's flight is split across nested
+   groups: steady across, up then down under gravity, and backspin, so the
+   arc comes out a parabola. Its 2s: peak at 42%, through the rim at 66%,
+   the floor at 85%, then one small bounce. */
+.swish {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  cursor: pointer;
+  --swish-delay: 0.3s;
+}
+.swish-floor {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.swish-board {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.swish-rim {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.swish-net {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: top center;
+  animation: swish-net 0.45s ease-out calc(var(--swish-delay) + 1.32s) both;
+}
+.ball {
+  fill: #e8772e;
+}
+.ball-seam {
+  fill: none;
+  stroke: #7a3b12;
+  stroke-width: 1.2;
+}
+.ball-x,
+.ball-y,
+.ball-spin {
+  animation-duration: 2s;
+  animation-delay: var(--swish-delay);
+  animation-fill-mode: both;
+}
+.ball-x {
+  animation-name: ball-x;
+}
+.ball-y {
+  animation-name: ball-y;
+}
+.ball-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: ball-spin;
+}
+@keyframes ball-x {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: linear;
+  }
+  66% {
+    transform: translateX(300px);
+    animation-timing-function: ease-out;
+  }
+  85%,
+  100% {
+    transform: translateX(308px);
+  }
+}
+@keyframes ball-y {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* ease-out quad */
+  }
+  42% {
+    transform: translateY(-110px);
+    animation-timing-function: cubic-bezier(0.55, 0.085, 0.68, 0.53); /* ease-in quad */
+  }
+  85% {
+    transform: translateY(10px);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  92.5% {
+    transform: translateY(-5px);
+    animation-timing-function: cubic-bezier(0.55, 0.085, 0.68, 0.53);
+  }
+  100% {
+    transform: translateY(10px);
+  }
+}
+@keyframes ball-spin {
+  0% {
+    transform: rotate(0);
+    animation-timing-function: linear;
+  }
+  85% {
+    transform: rotate(-720deg);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    transform: rotate(-760deg);
+  }
+}
+@keyframes swish-net {
+  30% {
+    transform: scale(0.9, 1.25);
+  }
+  60% {
+    transform: scale(1.03, 0.92);
+  }
+}
+/* No flight: the ball starts at rest under the hoop. */
+@media (prefers-reduced-motion: reduce) {
+  .swish {
+    --swish-delay: 0s;
+  }
+  .swish-net,
+  .ball-x,
+  .ball-y,
+  .ball-spin {
+    animation-duration: 1ms;
+  }
+}
 .intro {
   margin: 0 0 0.5rem;
   font-size: 1rem;
