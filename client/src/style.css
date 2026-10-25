@@ -277,6 +277,73 @@ tr.points td {
   color: var(--accent);
 }
 
+/* A loading message with a ball dribbling beside it: it falls, squashes on
+   the floor and springs back up, its shadow growing as it nears. */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.dribble {
+  flex: none;
+  width: 1.1em;
+  height: 1.55em;
+}
+.dribble-ball {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: dribble-ball 0.6s infinite;
+}
+.dribble-ball circle {
+  fill: #e8772e;
+}
+.dribble-ball path {
+  fill: none;
+  stroke: #7a3b12;
+  stroke-width: 1;
+}
+.dribble-shadow {
+  fill: var(--ink);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dribble-shadow 0.6s infinite;
+}
+@keyframes dribble-ball {
+  0%,
+  100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.55, 0.085, 0.68, 0.53); /* ease-in quad */
+  }
+  50% {
+    transform: translateY(12px) scale(1.15, 0.85);
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* ease-out quad */
+  }
+}
+@keyframes dribble-shadow {
+  0%,
+  100% {
+    transform: scaleX(0.5);
+    opacity: 0.08;
+    animation-timing-function: cubic-bezier(0.55, 0.085, 0.68, 0.53);
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 0.25;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+}
+/* Held still at the top of its bounce. */
+@media (prefers-reduced-motion: reduce) {
+  .dribble-ball,
+  .dribble-shadow {
+    animation: none;
+  }
+  .dribble-shadow {
+    transform: scaleX(0.5);
+    opacity: 0.08;
+  }
+}
+
 /* Landing screen: Games pinned to the top, Players to the bottom, with the
    space between them. dvh so a phone's browser bars don't push Players off
    the screen; body padding is 2rem top and bottom. */

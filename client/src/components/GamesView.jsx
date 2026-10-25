@@ -6,6 +6,7 @@ import { fetchBoxscore, fetchSchedule } from "../lib/api.js";
 import { currentSeason, dateLabel, isFinal, landingDate, seasonOptions } from "../lib/schedule.js";
 import { parseView, recordView } from "../lib/view.js";
 import GameList from "./GameList.jsx";
+import Loading from "./Loading.jsx";
 import Matchup from "./Matchup.jsx";
 import ViewHeader from "./ViewHeader.jsx";
 
@@ -20,7 +21,7 @@ export default function GamesView({ onHome }) {
   const [activeGameId, setActiveGameId] = useState(null);
   const [game, setGame] = useState(null);
   // What to show in place of the cards: a message, optionally an error.
-  const [status, setStatus] = useState({ text: "Loading…" });
+  const [status, setStatus] = useState({ text: "Loading…", loading: true });
 
   const schedules = useRef(new Map()); // season -> dates, so switching back costs nothing
   // Bumped by every navigation, so a slow response for a game or season the
@@ -32,9 +33,14 @@ export default function GamesView({ onHome }) {
     setStatus({ text, error });
   }
 
+  function showLoading(text) {
+    setGame(null);
+    setStatus({ text, loading: true });
+  }
+
   async function loadGame(gameId) {
     const request = ++latest.current;
-    showStatus("Loading…");
+    showLoading("Loading…");
     try {
       const body = await fetchBoxscore(gameId);
       if (request !== latest.current) return;
@@ -77,7 +83,7 @@ export default function GamesView({ onHome }) {
     if (!days) {
       const request = ++latest.current;
       setDates([]);
-      showStatus("Loading schedule…");
+      showLoading("Loading schedule…");
       try {
         days = (await fetchSchedule(next)).dates;
         schedules.current.set(next, days);
@@ -157,7 +163,8 @@ export default function GamesView({ onHome }) {
 
       {game && <Matchup game={game} />}
 
-      {status && (
+      {status?.loading && <Loading id="status">{status.text}</Loading>}
+      {status && !status.loading && (
         <p id="status" className={status.error ? "muted error" : "muted"}>
           {status.text}
         </p>

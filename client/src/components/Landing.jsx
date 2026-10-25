@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchBoxscore, fetchCareer } from "../lib/api.js";
 import { dateLabel } from "../lib/schedule.js";
 import CareerCard from "./CareerCard.jsx";
+import Loading from "./Loading.jsx";
 import Matchup from "./Matchup.jsx";
 
 // Opening night 2025-26: Warriors at Lakers.
@@ -28,7 +29,7 @@ function ExampleGame() {
   }, []);
 
   if (state.error) return <p className="muted error">Couldn&rsquo;t load the example game.</p>;
-  if (!state.game) return <p className="muted">Loading an example game…</p>;
+  if (!state.game) return <Loading>Loading an example game…</Loading>;
   const { gameEt, awayTeam: away, homeTeam: home } = state.game;
   // Reads like the game's button in the Games view, plus the day it was played.
   return (
@@ -62,7 +63,7 @@ function ExamplePlayers() {
   if (error) return <p className="muted error">Couldn&rsquo;t load the example players.</p>;
   // Wait for both, so the cards don't arrive one at a time in a shifting grid.
   if (EXAMPLE_PLAYERS.some((p) => !careers[p.id])) {
-    return <p className="muted">Loading example players…</p>;
+    return <Loading>Loading example players…</Loading>;
   }
   return (
     <section className="example-careers">

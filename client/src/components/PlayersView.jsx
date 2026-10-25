@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchCareer, fetchPlayers } from "../lib/api.js";
 import { parseView, recordView } from "../lib/view.js";
 import CareerCard from "./CareerCard.jsx";
+import Loading from "./Loading.jsx";
 import PlayerSearch from "./PlayerSearch.jsx";
 import ViewHeader from "./ViewHeader.jsx";
 
@@ -71,10 +72,10 @@ export default function PlayersView({ onHome }) {
 
   let status = null;
   if (listError) status = { text: `Couldn't load the player list: ${listError}`, error: true };
-  else if (!players) status = { text: "Loading players…" };
+  else if (!players) status = { text: "Loading players…", loading: true };
   else if (!playerId) status = null;
   else if (!player) status = { text: "That player isn't in the NBA's list." };
-  else if (!loaded) status = { text: "Loading career…" };
+  else if (!loaded) status = { text: "Loading career…", loading: true };
   else if (career.error) status = { text: career.error, error: true };
   else if (!career.data) status = { text: `No regular-season games on record for ${player.name}.` };
 
@@ -91,7 +92,8 @@ export default function PlayersView({ onHome }) {
         </section>
       )}
 
-      {status && (
+      {status?.loading && <Loading id="status">{status.text}</Loading>}
+      {status && !status.loading && (
         <p id="status" className={status.error ? "muted error" : "muted"}>
           {status.text}
         </p>
