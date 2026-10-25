@@ -7,6 +7,13 @@
 // court (-47.5 at the baseline, 422.5 at half court). shotDistance agrees with
 // them, so they're plotted as-is.
 
+// The half court in those units, with a little room past the lines, as an SVG
+// viewBox. SVG y runs down the page, so court y is negated: the basket sits
+// near the bottom and half court across the top.
+const PAD = 10;
+export const VIEW = { x: -250 - PAD, y: -422.5 - PAD, w: 500 + 2 * PAD, h: 470 + 2 * PAD };
+export const DOT = 6; // made-shot radius, court units: ~5px on a desktop card, 4px on a phone
+
 // Every field goal attempt the player took, in play order. Heaves are their
 // own action type with no position, and the box score doesn't count them as
 // attempts either, so leaving them out keeps the chart's totals matching it.

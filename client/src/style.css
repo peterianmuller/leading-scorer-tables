@@ -292,6 +292,112 @@ tr.points td {
   margin: 0 0 0.5rem;
   font-size: 1rem;
 }
+
+/* The title and intro, with the example game's court beside them. */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  align-items: center;
+  gap: 2rem;
+}
+.hero .intro {
+  margin-top: 1rem;
+}
+@media (max-width: 720px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .shot-hero {
+    order: -1;
+    width: 150px;
+  }
+}
+
+/* The court's lines draw in one after another over about 1.5s, then the
+   shots pop on in play order, 70ms apart. */
+.shot-hero {
+  --series: var(--accent);
+  margin: 0;
+}
+.shot-hero svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.shot-hero figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  text-align: center;
+  animation: hero-fade 0.4s ease-out 1.2s both;
+}
+.shot-hero .court-lines * {
+  vector-effect: none; /* dashes measure the line in court units */
+  stroke-width: 2.5;
+  stroke-dasharray: 1;
+  animation: court-draw 0.8s ease-in-out both;
+}
+.shot-hero .court-lines :nth-child(2) {
+  animation-delay: 0.1s;
+}
+.shot-hero .court-lines :nth-child(3) {
+  animation-delay: 0.2s;
+}
+.shot-hero .court-lines :nth-child(4) {
+  animation-delay: 0.3s;
+}
+.shot-hero .court-lines :nth-child(5) {
+  animation-delay: 0.4s;
+}
+.shot-hero .court-lines :nth-child(6) {
+  animation-delay: 0.45s;
+}
+.shot-hero .court-lines :nth-child(7) {
+  animation-delay: 0.5s;
+}
+.shot-hero .court-lines :nth-child(8) {
+  animation-delay: 0.6s;
+}
+.shot-hero .shot-made {
+  stroke: var(--bg);
+}
+.hero-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-pop 0.35s ease-out both;
+  animation-delay: calc(1.2s + var(--i) * 70ms);
+}
+@keyframes court-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes hero-pop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+/* No drawing: the court and its shots are just there. */
+@media (prefers-reduced-motion: reduce) {
+  .shot-hero .court-lines *,
+  .shot-hero figcaption,
+  .hero-pop {
+    animation: none;
+  }
+}
 .section-title {
   margin-top: 0.5rem;
 }

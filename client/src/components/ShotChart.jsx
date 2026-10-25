@@ -1,13 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { clockLabel, periodLabel } from "../lib/scoring.js";
-import { nearestShot, playerShots, shootingLine, shotLabel } from "../lib/shots.js";
+import { DOT, VIEW, nearestShot, playerShots, shootingLine, shotLabel } from "../lib/shots.js";
 
-// The half court in the feed's own units, tenths of a foot (see lib/shots.js),
-// with a little room past the lines. SVG y runs down the page, so court y is
-// negated: the basket sits near the bottom and half court across the top.
-const PAD = 10;
-const VIEW = { x: -250 - PAD, y: -422.5 - PAD, w: 500 + 2 * PAD, h: 470 + 2 * PAD };
-const DOT = 6; // made-shot radius, court units: ~5px on a desktop card, 4px on a phone
 const HIT_PX = 24; // how near the pointer must be to pick a shot
 
 // Each leading scorer's field goal attempts at the spot they were taken, one
@@ -146,7 +140,7 @@ function Court({ player, team, slot, shots }) {
 
 // Arms reach DOT court units from the center, so a miss covers the same
 // footprint as a make.
-function Cross({ className, transform }) {
+export function Cross({ className, transform }) {
   const r = DOT * 0.8;
   return (
     <path
@@ -157,22 +151,23 @@ function Cross({ className, transform }) {
   );
 }
 
-// NBA court markings, in court units with y negated (see VIEW).
-function CourtLines() {
+// NBA court markings, in court units with y negated (see VIEW). pathLength
+// lets the landing's court draw each line in over the same time.
+export function CourtLines() {
   const corner = Math.sqrt(237.5 ** 2 - 220 ** 2); // where the corner three meets the arc
   return (
     <g className="court-lines">
-      <rect x={-250} y={-422.5} width={500} height={470} />
+      <rect pathLength={1} x={-250} y={-422.5} width={500} height={470} />
       {/* Paint, free-throw circle, restricted area, rim and backboard */}
-      <rect x={-80} y={-142.5} width={160} height={190} />
-      <path d="M-60,-142.5 A60,60 0 0 1 60,-142.5" />
-      <path d="M-40,0 A40,40 0 0 1 40,0" />
-      <circle cx={0} cy={0} r={7.5} />
-      <line x1={-30} x2={30} y1={7.5} y2={7.5} />
+      <rect pathLength={1} x={-80} y={-142.5} width={160} height={190} />
+      <path pathLength={1} d="M-60,-142.5 A60,60 0 0 1 60,-142.5" />
+      <path pathLength={1} d="M-40,0 A40,40 0 0 1 40,0" />
+      <circle pathLength={1} cx={0} cy={0} r={7.5} />
+      <line pathLength={1} x1={-30} x2={30} y1={7.5} y2={7.5} />
       {/* Three-point line: straight in the corners, then the 23'9" arc */}
-      <path d={`M-220,47.5 V${-corner} A237.5,237.5 0 0 1 220,${-corner} V47.5`} />
+      <path pathLength={1} d={`M-220,47.5 V${-corner} A237.5,237.5 0 0 1 220,${-corner} V47.5`} />
       {/* Center circle, half of it on this side of the line */}
-      <path d="M-60,-422.5 A60,60 0 0 0 60,-422.5" />
+      <path pathLength={1} d="M-60,-422.5 A60,60 0 0 0 60,-422.5" />
     </g>
   );
 }
