@@ -292,7 +292,7 @@ tr.points td {
 .dribble-ball {
   transform-box: fill-box;
   transform-origin: bottom center;
-  animation: dribble-ball 0.6s infinite;
+  animation: dribble-ball 0.9s infinite;
 }
 .dribble-ball circle {
   fill: #e8772e;
@@ -306,7 +306,7 @@ tr.points td {
   fill: var(--ink);
   transform-box: fill-box;
   transform-origin: center;
-  animation: dribble-shadow 0.6s infinite;
+  animation: dribble-shadow 0.9s infinite;
 }
 @keyframes dribble-ball {
   0%,
