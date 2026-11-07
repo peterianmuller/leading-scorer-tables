@@ -5,6 +5,7 @@
 import { test, describe, before, after, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
+import net from "node:net";
 import { fileURLToPath } from "node:url";
 
 // Static routes are exercised against a small fixture rather than the React
@@ -14,12 +15,15 @@ process.env.STATIC_DIR = fileURLToPath(new URL("fixtures/static", import.meta.ur
 
 const {
   cache,
+  CACHE_MAX_ENTRIES,
   currentSeason,
   DEFAULT_GAME_ID,
+  fetchJson,
   pickWikidataImage,
   plainText,
   reduceCareer,
   reduceImageInfo,
+  reducePlayByPlay,
   reducePlayers,
   reduceSchedule,
   resultRows,
@@ -27,6 +31,7 @@ const {
   resolvePersonId,
   resolveSeason,
   server,
+  UPSTREAM_TIMEOUT_MS,
 } = await import("../server.js");
 
 const params = (qs = "") => new URLSearchParams(qs);
@@ -385,6 +390,65 @@ describe("reduceCareer", () => {
   });
 });
 
+describe("reducePlayByPlay", () => {
+  test("keeps only the fields the charts read", () => {
+    const raw = {
+      meta: { version: 1 },
+      game: {
+        gameId: "0022500002",
+        actions: [
+          {
+            actionNumber: 7,
+            orderNumber: 70000,
+            period: 1,
+            clock: "PT11M39.00S",
+            personId: 2544,
+            teamId: 1610612747,
+            actionType: "2pt",
+            isFieldGoal: 1,
+            shotResult: "Made",
+            shotDistance: 3.2,
+            xLegacy: -12,
+            yLegacy: 28,
+            pointsTotal: 2,
+            description: "James 3' Driving Layup (2 PTS)",
+            qualifiers: ["pointsinthepaint"],
+            scoreHome: "2",
+          },
+          { orderNumber: 10000, period: 1, clock: "PT12M00.00S", actionType: "period" },
+        ],
+      },
+    };
+
+    assert.deepEqual(reducePlayByPlay(raw), {
+      game: {
+        gameId: "0022500002",
+        actions: [
+          {
+            orderNumber: 70000,
+            period: 1,
+            clock: "PT11M39.00S",
+            personId: 2544,
+            actionType: "2pt",
+            isFieldGoal: 1,
+            shotResult: "Made",
+            shotDistance: 3.2,
+            xLegacy: -12,
+            yLegacy: 28,
+            pointsTotal: 2,
+            description: "James 3' Driving Layup (2 PTS)",
+          },
+          { orderNumber: 10000, period: 1, clock: "PT12M00.00S", actionType: "period" },
+        ],
+      },
+    });
+  });
+
+  test("copes with a payload that has no actions", () => {
+    assert.deepEqual(reducePlayByPlay({}), { game: { gameId: undefined, actions: [] } });
+  });
+});
+
 /* ------------------------------- HTTP routes ----------------------------- */
 
 // Requests to the local server go through node:http rather than fetch, since
@@ -406,6 +470,21 @@ function get(port, path) {
         );
       })
       .on("error", reject);
+  });
+}
+
+// Sends a request exactly as written, for the malformed ones node:http won't
+// build. Each sends "Connection: close", so the server ends the socket once
+// it has replied. Resolves with the raw response text.
+function rawRequest(port, text) {
+  return new Promise((resolve, reject) => {
+    // write, not end: a half-closed socket is dropped before an async reply.
+    const socket = net.connect(port, "127.0.0.1", () => socket.write(text));
+    let body = "";
+    socket.setEncoding("utf8");
+    socket.on("data", (chunk) => (body += chunk));
+    socket.on("end", () => resolve(body));
+    socket.on("error", reject);
   });
 }
 
@@ -711,6 +790,102 @@ describe("HTTP server", () => {
         assert.match(res.json().error, /personId/);
       }
       assert.equal(fetchMock.mock.callCount(), 0);
+    });
+  });
+
+  describe("malformed requests", () => {
+    test("ignores a Host header that isn't a valid host", async () => {
+      const reply = await rawRequest(
+        port,
+        "GET / HTTP/1.1\r\nHost: a b\r\nConnection: close\r\n\r\n",
+      );
+      assert.match(reply, /^HTTP\/1\.1 200 /);
+      assert.equal((await get(port, "/")).status, 200);
+    });
+
+    test("400s a path that can't be parsed, and keeps serving", async () => {
+      const reply = await rawRequest(
+        port,
+        "GET //[ HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n",
+      );
+      assert.match(reply, /^HTTP\/1\.1 400 /);
+      assert.match(reply, /Couldn't parse the request path/);
+      assert.equal((await get(port, "/")).status, 200);
+    });
+  });
+
+  describe("upstream failures", () => {
+    test("gives the upstream request a time limit", async () => {
+      upstream(200, {});
+      await get(port, "/api/boxscore");
+      assert.ok(fetchMock.mock.calls[0].arguments[1].signal instanceof AbortSignal);
+    });
+
+    test("504s when the upstream doesn't answer in time", async () => {
+      fetchMock.mock.mockImplementation(async () => {
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      });
+      const res = await get(port, "/api/boxscore");
+      assert.equal(res.status, 504);
+      assert.match(
+        res.json().error,
+        new RegExp(`NBA didn't answer within ${UPSTREAM_TIMEOUT_MS / 1000}s for /static/json`),
+      );
+    });
+
+    test("502s and names the upstream when it can't be reached", async () => {
+      fetchMock.mock.mockImplementation(async () => {
+        throw new TypeError("fetch failed");
+      });
+      const res = await get(port, "/api/boxscore");
+      assert.equal(res.status, 502);
+      assert.match(res.json().error, /^Couldn't reach NBA for \/static\/json.*: fetch failed$/);
+    });
+
+    test("502s when a 200 from upstream isn't JSON", async () => {
+      fetchMock.mock.mockImplementation(async () => new Response("<html>", { status: 200 }));
+      const res = await get(port, "/api/boxscore");
+      assert.equal(res.status, 502);
+      assert.match(res.json().error, /NBA sent something that isn't JSON/);
+      assert.equal(cache.size, 0);
+    });
+  });
+
+  describe("cache", () => {
+    test("evicts the least recently used entry once it's full", async () => {
+      fetchMock.mock.mockImplementation(async (url) => new Response(JSON.stringify({ url })));
+      const urls = Array.from({ length: CACHE_MAX_ENTRIES }, (_, i) => `https://x.test/${i}`);
+      for (const url of urls) await fetchJson(url, 60_000);
+
+      // Reading the oldest entry makes it the newest, so the next one goes instead.
+      await fetchJson(urls[0], 60_000);
+      await fetchJson("https://x.test/new", 60_000);
+
+      assert.equal(cache.size, CACHE_MAX_ENTRIES);
+      assert.ok(cache.has(urls[0]));
+      assert.ok(!cache.has(urls[1]));
+      assert.ok(cache.has("https://x.test/new"));
+      assert.equal(fetchMock.mock.callCount(), CACHE_MAX_ENTRIES + 1);
+    });
+
+    test("drops an expired entry when it's read", async () => {
+      fetchMock.mock.mockImplementation(async () => new Response("{}"));
+      await fetchJson("https://x.test/a", 60_000);
+      cache.get("https://x.test/a").at -= 60_000;
+      await fetchJson("https://x.test/a", 60_000);
+      assert.equal(fetchMock.mock.callCount(), 2);
+    });
+  });
+
+  describe("/api/playbyplay", () => {
+    test("returns the play-by-play trimmed to what the charts read", async () => {
+      upstream(200, {
+        meta: {},
+        game: { gameId: DEFAULT_GAME_ID, actions: [{ period: 1, teamId: 1, scoreHome: "0" }] },
+      });
+      const res = await get(port, "/api/playbyplay");
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.json(), { game: { gameId: DEFAULT_GAME_ID, actions: [{ period: 1 }] } });
     });
   });
 

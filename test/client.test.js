@@ -29,6 +29,7 @@ import {
 import { nearestShot, playerShots, shootingLine, shotLabel } from "../client/src/lib/shots.js";
 import { careerYears, matchPlayers } from "../client/src/lib/players.js";
 import { parseView, viewSearch } from "../client/src/lib/view.js";
+import { getJson } from "../client/src/lib/api.js";
 
 // The client reads the viewer's local clock, so dates here are built from
 // local-time parts rather than ISO strings (which parse as UTC and can land
@@ -610,5 +611,43 @@ describe("scoringSummary", () => {
       scoringSummary(stats, { first: 31, second: 0 }),
       /All of them came before halftime\.$/,
     );
+  });
+});
+
+describe("getJson", () => {
+  afterEach(() => mock.restoreAll());
+
+  const respond = (body, init) =>
+    mock.method(globalThis, "fetch", async () => new Response(body, init));
+
+  test("returns the parsed body", async () => {
+    respond('{"ok":true}', { status: 200 });
+    assert.deepEqual(await getJson("/api/x"), { ok: true });
+  });
+
+  test("throws the server's own error message", async () => {
+    respond('{"error":"gameId must be 10 digits"}', { status: 400 });
+    await assert.rejects(getJson("/api/x"), { message: "gameId must be 10 digits" });
+  });
+
+  test("names the status when an error response isn't JSON", async () => {
+    respond("", { status: 500, statusText: "Internal Server Error" });
+    await assert.rejects(getJson("/api/x"), {
+      message: "The server answered 500 Internal Server Error",
+    });
+  });
+
+  test("says so when a successful response isn't JSON", async () => {
+    respond("<!doctype html>", { status: 200 });
+    await assert.rejects(getJson("/api/x"), {
+      message: "The server sent a response that isn't JSON.",
+    });
+  });
+
+  test("says the server couldn't be reached when the request fails", async () => {
+    mock.method(globalThis, "fetch", async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    await assert.rejects(getJson("/api/x"), /^Error: Couldn't reach the server/);
   });
 });

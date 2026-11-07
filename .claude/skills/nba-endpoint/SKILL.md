@@ -34,8 +34,10 @@ exist (for example, a game with no live file yet), so a 403 alone doesn't tell
 you which problem you have. If a new route 403s, check the headers first, then
 the path.
 
-`fetchJson` maps upstream 404 → 404 and everything else → 502, and never caches
-failures. Don't add a separate error path in a route.
+`fetchJson` maps upstream 404 → 404, a request that takes longer than
+`UPSTREAM_TIMEOUT_MS` → 504, and everything else (other statuses, network
+errors, a body that isn't JSON) → 502, and never caches failures. Don't add a
+separate error path in a route.
 
 ## Validate input before it reaches a URL
 
@@ -59,6 +61,8 @@ Params are interpolated straight into upstream URLs, so validate them first:
   payload is never held in memory for the whole TTL. The raw schedule is
   ~4.5 MB, of which ~189 KB is used. Export the transform so it can be tested
   on its own.
+- The cache is an LRU capped at `CACHE_MAX_ENTRIES`. That cap assumes entries
+  of ~120 KB at most, so a big raw payload needs a transform before it's cached.
 
 ## Checklist
 
