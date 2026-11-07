@@ -69,7 +69,31 @@ const EARLIEST_SEASON = 2019;
 export const DEFAULT_GAME_ID = "0022500002";
 
 // Live data goes stale fast, so the TTL is per-endpoint rather than global.
+// A Map keeps insertion order, and every read moves its entry to the end, so
+// the first key is always the least recently used one. Capped by count: the
+// biggest entries are trimmed play-by-plays of ~120KB, so the cache tops out
+// at a few tens of MB however many games and players get looked up.
 export const cache = new Map();
+export const CACHE_MAX_ENTRIES = 300;
+
+// stats.nba.com is known to hang rather than refuse requests it doesn't like,
+// especially from cloud hosts. Without a limit, the browser waits forever.
+export const UPSTREAM_TIMEOUT_MS = 10_000;
+
+function cacheGet(url, ttlMs) {
+  const entry = cache.get(url);
+  if (!entry) return undefined;
+  cache.delete(url);
+  if (Date.now() - entry.at >= ttlMs) return undefined;
+  cache.set(url, entry); // now the most recently used
+  return entry;
+}
+
+function cacheSet(url, body) {
+  cache.delete(url);
+  cache.set(url, { at: Date.now(), body });
+  while (cache.size > CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
+}
 
 // cdn.nba.com sits behind a bot filter that rejects requests with no
 // browser-like identity. Without these you get a 403, not a 401 — which
@@ -94,19 +118,37 @@ export async function fetchJson(
   transform = (body) => body,
   { headers = HEADERS, upstream = "NBA" } = {},
 ) {
-  const cached = cache.get(url);
-  if (cached && Date.now() - cached.at < ttlMs) {
-    return cached.body;
-  }
+  const cached = cacheGet(url, ttlMs);
+  if (cached) return cached.body;
 
-  const res = await fetch(url, { headers });
+  const where = new URL(url).pathname;
+  let res;
+  let payload;
+  try {
+    // The signal covers reading the body as well as the response headers.
+    const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+    res = await fetch(url, { headers, signal });
+    if (res.ok) payload = await res.json();
+  } catch (cause) {
+    const timedOut = cause.name === "TimeoutError";
+    const err = new Error(
+      timedOut
+        ? `${upstream} didn't answer within ${UPSTREAM_TIMEOUT_MS / 1000}s for ${where}.`
+        : cause instanceof SyntaxError
+          ? `${upstream} sent something that isn't JSON for ${where}.`
+          : `Couldn't reach ${upstream} for ${where}: ${cause.message}`,
+      { cause },
+    );
+    err.status = timedOut ? 504 : 502;
+    throw err;
+  }
 
   if (!res.ok) {
     // 403 here means one of two things: the bot filter rejected us, or the
     // file genuinely isn't there. The CDN returns 403 for missing objects
     // rather than 404, so the status alone can't tell you which.
     const err = new Error(
-      `${upstream} returned ${res.status} for ${new URL(url).pathname}. ` +
+      `${upstream} returned ${res.status} for ${where}. ` +
         (res.status === 403 && upstream === "NBA"
           ? "Either the request was blocked or that game has no live file."
           : ""),
@@ -115,9 +157,35 @@ export async function fetchJson(
     throw err;
   }
 
-  const body = transform(await res.json());
-  cache.set(url, { at: Date.now(), body });
+  const body = transform(payload);
+  cacheSet(url, body);
   return body;
+}
+
+// The play-by-play fields the charts read. Everything else (team IDs, running
+// scores, qualifiers, descriptors) is about two thirds of the file.
+const PLAY_FIELDS = [
+  "orderNumber",
+  "period",
+  "clock",
+  "personId",
+  "actionType",
+  "isFieldGoal",
+  "shotResult",
+  "shotDistance",
+  "xLegacy",
+  "yLegacy",
+  "pointsTotal",
+  "description",
+];
+
+// Raw play-by-play (~385KB a game) -> the same shape with only PLAY_FIELDS
+// left on each action (~120KB), so it's smaller in the cache and on the wire.
+export function reducePlayByPlay(payload) {
+  const actions = (payload.game?.actions ?? []).map((a) =>
+    Object.fromEntries(PLAY_FIELDS.filter((k) => k in a).map((k) => [k, a[k]])),
+  );
+  return { game: { gameId: payload.game?.gameId, actions } };
 }
 
 // Resolves and validates a gameId, falling back to the default when absent.
@@ -377,7 +445,7 @@ export const routes = {
   // /api/playbyplay  or  /api/playbyplay?gameId=0022500066
   "/api/playbyplay": (params) => {
     const gameId = resolveGameId(params);
-    return fetchJson(`${BASE_URL}/playbyplay/playbyplay_${gameId}.json`, 20_000);
+    return fetchJson(`${BASE_URL}/playbyplay/playbyplay_${gameId}.json`, 20_000, reducePlayByPlay);
   },
 
   // /api/headshot?personId=2544
@@ -476,10 +544,25 @@ async function serveStatic(pathname, res) {
   }
 }
 
-export const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const handler = routes[url.pathname];
+// Only the path and query are used, so they're parsed against a fixed base.
+// The Host header is whatever the client sent, and a malformed one ("a b")
+// would make the URL constructor throw.
+function parseRequestUrl(req) {
+  try {
+    return new URL(req.url, "http://localhost");
+  } catch {
+    return null;
+  }
+}
 
+async function handle(req, res) {
+  const url = parseRequestUrl(req);
+  if (!url) {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: `Couldn't parse the request path "${req.url}".` }));
+  }
+
+  const handler = routes[url.pathname];
   if (!handler) return serveStatic(url.pathname, res);
 
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -494,6 +577,18 @@ export const server = http.createServer(async (req, res) => {
     res.writeHead(err.status || 502);
     res.end(JSON.stringify({ error: err.message }));
   }
+}
+
+// The listener is async, so anything that escapes handle() would be an
+// unhandled rejection, and Node exits on those. One odd request must never
+// take the server down for everyone, so the last resort is a 500.
+export const server = http.createServer((req, res) => {
+  handle(req, res).catch((err) => {
+    console.error(err);
+    if (res.headersSent) return res.destroy();
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Internal server error" }));
+  });
 });
 
 // Only listen when run directly (`node server.js`). The tests import this

@@ -1,9 +1,27 @@
 // The server answers errors with { error }, so surface that rather than a
-// bare status code.
+// bare status code. Not every response comes from it, though: with the API
+// server stopped, Vite's dev proxy sends an empty 500, and a host's error page
+// is HTML. Those get a plain message rather than "Unexpected end of JSON input".
 export async function getJson(url) {
-  const res = await fetch(url);
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch {
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  }
+
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = undefined;
+  }
+
+  if (!res.ok) {
+    throw new Error(body?.error || `The server answered ${res.status} ${res.statusText}`.trim());
+  }
+  if (body === undefined) throw new Error("The server sent a response that isn't JSON.");
   return body;
 }
 
