@@ -14,7 +14,14 @@ import {
   splitStatKeys,
   teamLeader,
 } from "../client/src/lib/stats.js";
-import { currentSeason, isFinal, landingDate, seasonOptions } from "../client/src/lib/schedule.js";
+import {
+  currentSeason,
+  hasFinalGame,
+  isFinal,
+  landingDate,
+  previousSeason,
+  seasonOptions,
+} from "../client/src/lib/schedule.js";
 import {
   clockLabel,
   elapsedSeconds,
@@ -234,13 +241,40 @@ describe("landingDate", () => {
     assert.equal(landingDate(dates), "2026-01-02");
   });
 
-  test("falls back to the last date when nothing has been played", () => {
-    const dates = [day("2026-10-20", 1), day("2026-10-21", 1)];
-    assert.equal(landingDate(dates), "2026-10-21");
+  test("opens on opening night when nothing has been played", () => {
+    // Early October: the new season's schedule runs to the following April.
+    const dates = [day("2026-10-20", 1), day("2026-10-21", 1), day("2027-04-11", 1)];
+    assert.equal(landingDate(dates), "2026-10-20");
   });
 
   test("is undefined for an empty schedule", () => {
     assert.equal(landingDate([]), undefined);
+  });
+});
+
+describe("hasFinalGame", () => {
+  const day = (...statuses) => ({
+    date: "2026-10-20",
+    games: statuses.map((status) => ({ status })),
+  });
+
+  test("is true once any game has finished", () => {
+    assert.equal(hasFinalGame([day(1, 1), day(3, 2)]), true);
+  });
+
+  test("is false for a season that hasn't tipped off, or an empty one", () => {
+    assert.equal(hasFinalGame([day(1, 1), day(1)]), false);
+    assert.equal(hasFinalGame([]), false);
+  });
+});
+
+describe("previousSeason", () => {
+  test("steps back one season", () => {
+    assert.equal(previousSeason("2025-26"), "2024-25");
+  });
+
+  test("wraps across the turn of the century", () => {
+    assert.equal(previousSeason("2100-01"), "2099-00");
   });
 });
 

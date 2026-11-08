@@ -72,6 +72,32 @@ describe("resolveGameId", () => {
       );
     }
   });
+
+  test("rejects a season whose second year doesn't follow its first", () => {
+    for (const bad of ["2024-99", "2024-24", "2024-26"]) {
+      assert.throws(
+        () => resolveSeason(params(`season=${bad}`)),
+        (err) => err.status === 400 && err.message.includes("as in 2024-25"),
+      );
+    }
+  });
+
+  describe("seasons in the future", () => {
+    afterEach(() => mock.timers.reset());
+
+    test("allows the next season, for a browser whose clock is a little ahead", () => {
+      mock.timers.enable({ apis: ["Date"], now: new Date(2026, 8, 30) });
+      assert.equal(resolveSeason(params("season=2026-27")), "2026-27");
+    });
+
+    test("rejects anything further out with a 400", () => {
+      mock.timers.enable({ apis: ["Date"], now: new Date(2026, 8, 30) });
+      assert.throws(
+        () => resolveSeason(params("season=2027-28")),
+        (err) => err.status === 400 && /can't start after 2026, got "2027-28"/.test(err.message),
+      );
+    });
+  });
 });
 
 describe("resolveSeason", () => {
@@ -626,7 +652,7 @@ describe("HTTP server", () => {
       const res = await get(port, "/api/schedule?season=2015-16");
 
       assert.equal(res.status, 400);
-      assert.match(res.json().error, /start at 2019/);
+      assert.match(res.json().error, /must start in 2019 or later/);
       assert.equal(fetchMock.mock.callCount(), 0);
     });
   });
