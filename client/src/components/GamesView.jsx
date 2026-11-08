@@ -16,6 +16,7 @@ import { parseView, recordView } from "../lib/view.js";
 import GameList from "./GameList.jsx";
 import Matchup from "./Matchup.jsx";
 import ViewHeader from "./ViewHeader.jsx";
+import usePlayByPlay from "./usePlayByPlay.js";
 
 const SEASONS = seasonOptions();
 
@@ -34,6 +35,9 @@ export default function GamesView({ onHome }) {
   // Bumped by every navigation, so a slow response for a game or season the
   // user has already moved past can't overwrite what they're looking at now.
   const latest = useRef(0);
+  // The open game's play-by-play, for its charts. Keyed on the loaded box
+  // score, so it's only requested for a game that's actually showing.
+  const pbp = usePlayByPlay(game?.gameId);
 
   function showStatus(text, error = false) {
     setGame(null);
@@ -173,7 +177,7 @@ export default function GamesView({ onHome }) {
         <GameList games={games} activeGameId={activeGameId} onSelect={openGame} />
       </header>
 
-      {game && <Matchup game={game} />}
+      {game && <Matchup game={game} pbp={pbp} />}
 
       {status && (
         <p id="status" className={status.error ? "muted error" : "muted"}>
