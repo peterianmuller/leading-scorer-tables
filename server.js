@@ -216,11 +216,23 @@ export function resolveSeason(params) {
   const raw = params.get("season");
   const season = raw === null || raw === "" ? currentSeason() : raw.trim();
   const match = SEASON.exec(season);
+  const start = match ? Number(match[1]) : NaN;
+  // One season past the current one is allowed: around October 1 the browser's
+  // clock can already be in the new season while the server's isn't yet.
+  const latest = Number(currentSeason().slice(0, 4)) + 1;
 
-  if (!match || Number(match[1]) < EARLIEST_SEASON) {
-    const err = new Error(
-      `season must look like 2025-26 and start at ${EARLIEST_SEASON}, got "${season}".`,
-    );
+  const problem = !match
+    ? "must look like 2025-26"
+    : Number(match[2]) !== (start + 1) % 100
+      ? `must end with the year after ${start}, as in ${start}-${String((start + 1) % 100).padStart(2, "0")}`
+      : start < EARLIEST_SEASON
+        ? `must start in ${EARLIEST_SEASON} or later`
+        : start > latest
+          ? `can't start after ${latest}`
+          : null;
+
+  if (problem) {
+    const err = new Error(`season ${problem}, got "${season}".`);
     err.status = 400;
     throw err;
   }

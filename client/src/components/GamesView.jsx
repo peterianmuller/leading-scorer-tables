@@ -3,7 +3,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fetchBoxscore, fetchSchedule } from "../lib/api.js";
-import { currentSeason, dateLabel, isFinal, landingDate, seasonOptions } from "../lib/schedule.js";
+import {
+  currentSeason,
+  dateLabel,
+  hasFinalGame,
+  isFinal,
+  landingDate,
+  previousSeason,
+  seasonOptions,
+} from "../lib/schedule.js";
 import { parseView, recordView } from "../lib/view.js";
 import GameList from "./GameList.jsx";
 import Matchup from "./Matchup.jsx";
@@ -69,8 +77,10 @@ export default function GamesView({ onHome }) {
   }
 
   // `want` names a date and game to land on instead of the usual ones, plus how
-  // to record the view in history (see showDate).
-  async function showSeason(next, { date: wantDate, ...want } = {}) {
+  // to record the view in history (see showDate). `fallBack` is for when the
+  // season wasn't asked for, only defaulted: if it hasn't tipped off yet, the
+  // previous one is shown instead, since it has games to open.
+  async function showSeason(next, { date: wantDate, fallBack = false, ...want } = {}) {
     setSeason(next);
     let days = schedules.current.get(next);
 
@@ -90,6 +100,11 @@ export default function GamesView({ onHome }) {
       if (request !== latest.current) return;
     }
 
+    const earlier = previousSeason(next);
+    if (fallBack && !hasFinalGame(days) && SEASONS.includes(earlier)) {
+      return showSeason(earlier, { ...want, date: wantDate });
+    }
+
     setDates(days);
     const landing = days.some((d) => d.date === wantDate) ? wantDate : landingDate(days);
     showDate(next, days, landing, want);
@@ -100,13 +115,16 @@ export default function GamesView({ onHome }) {
   function restoreView() {
     const view = parseView(window.location.search, SEASONS);
     if (view.view !== "games") return;
-    return showSeason(view.season ?? currentSeason(), { ...view, history: "replace" });
+    return showSeason(view.season ?? currentSeason(), {
+      ...view,
+      history: "replace",
+      fallBack: !view.season,
+    });
   }
 
   useEffect(() => {
     // Fetching on mount is what an effect is for; the state it sets up front
     // is the same "Loading…" the page already starts in.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     restoreView();
     window.addEventListener("popstate", restoreView);
     // A counter, not a DOM node, so it's the live value the cleanup wants.
