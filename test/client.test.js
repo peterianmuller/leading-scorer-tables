@@ -48,7 +48,12 @@ const local = (year, month, day) => new Date(year, month - 1, day);
 describe("formatValue", () => {
   test("turns ISO 8601 minutes into m:ss", () => {
     assert.equal(formatValue("minutes", "PT34M12.00S"), "34:12");
-    assert.equal(formatValue("minutesCalculated", "PT05M03.00S"), "05:03");
+    assert.equal(formatValue("minutesCalculated", "PT15M03.00S"), "15:03");
+  });
+
+  test("drops the CDN's zero-padding from minutes, as a box score prints them", () => {
+    assert.equal(formatValue("minutes", "PT08M34.00S"), "8:34");
+    assert.equal(formatValue("minutes", "PT00M00.00S"), "0:00");
   });
 
   test("zero-pads single-digit seconds", () => {

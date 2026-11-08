@@ -6,10 +6,10 @@ import { useMemo } from "react";
 import { DOT, VIEW, playerShots } from "../lib/shots.js";
 import { teamLeader } from "../lib/stats.js";
 import { CourtLines, Cross } from "./ShotChart.jsx";
-import usePlayByPlay from "./usePlayByPlay.js";
 
 // The court draws in as soon as the page does; the shots wait for the game.
-export default function ShotHero({ game }) {
+// `pbp` is the game's play-by-play, shared with the matchup below it.
+export default function ShotHero({ game, pbp }) {
   // Whichever leading scorer scored more; the away one on a tie.
   const away = game && teamLeader(game.awayTeam);
   const home = game && teamLeader(game.homeTeam);
@@ -20,7 +20,7 @@ export default function ShotHero({ game }) {
     <figure className="shot-hero">
       <svg viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} aria-hidden="true">
         <CourtLines />
-        {player && <Shots gameId={game.gameId} player={player} />}
+        {player && <Shots actions={pbp.actions} player={player} />}
       </svg>
       {player && (
         <figcaption className="muted">
@@ -31,8 +31,7 @@ export default function ShotHero({ game }) {
   );
 }
 
-function Shots({ gameId, player }) {
-  const { actions } = usePlayByPlay(gameId);
+function Shots({ actions, player }) {
   const shots = useMemo(
     () => (actions && player ? playerShots(actions, player.personId) : []),
     [actions, player],

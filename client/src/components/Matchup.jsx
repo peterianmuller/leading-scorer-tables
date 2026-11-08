@@ -4,18 +4,17 @@ import { teamLeader } from "../lib/stats.js";
 import ScoringFlow from "./ScoringFlow.jsx";
 import ShotCharts from "./ShotChart.jsx";
 import TeamCard from "./TeamCard.jsx";
-import usePlayByPlay from "./usePlayByPlay.js";
 
 // Both teams' leading scorers: their stat lines side by side, then how their
 // points built up over the game and where they shot from, away first so
-// everything reads in the same order as the matchup line.
-export default function Matchup({ game }) {
+// everything reads in the same order as the matchup line. `pbp` is the game's
+// play-by-play from usePlayByPlay, fetched by the view so anything else on the
+// page that charts the game can share it.
+export default function Matchup({ game, pbp }) {
   const away = teamLeader(game.awayTeam);
   const home = teamLeader(game.homeTeam);
   const awayPoints = away?.statistics.points ?? -1;
   const homePoints = home?.statistics.points ?? -1;
-
-  const pbp = usePlayByPlay(game.gameId);
 
   // Pregame box scores have no players, so there's nothing to chart yet.
   // Memoized so the charts' per-game work doesn't rerun on every render.

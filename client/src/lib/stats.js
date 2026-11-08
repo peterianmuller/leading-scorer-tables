@@ -36,11 +36,12 @@ export const LABELS = {
   minutesCalculated: "Minutes (calculated)",
 };
 
-// CDN minutes come as ISO 8601 durations, e.g. "PT34M12.00S".
+// CDN minutes come as ISO 8601 durations, e.g. "PT34M12.00S", with minutes
+// zero-padded to two digits. A box score writes them unpadded: "8:34".
 export function formatValue(key, value) {
   if (key.startsWith("minutes") && typeof value === "string") {
     const m = value.match(/PT(\d+)M(\d+)/);
-    return m ? `${m[1]}:${m[2].padStart(2, "0")}` : value;
+    return m ? `${Number(m[1])}:${m[2].padStart(2, "0")}` : value;
   }
   if (key.endsWith("Percentage")) return `${(value * 100).toFixed(1)}%`;
   if (key === "plusMinusPoints" && value > 0) return `+${value}`;

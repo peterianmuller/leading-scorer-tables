@@ -7,6 +7,7 @@ import { dateLabel } from "../lib/schedule.js";
 import CareerCard from "./CareerCard.jsx";
 import Matchup from "./Matchup.jsx";
 import ShotHero from "./ShotHero.jsx";
+import usePlayByPlay from "./usePlayByPlay.js";
 
 // Opening night 2025-26: Warriors at Lakers.
 const EXAMPLE_GAME_ID = "0022500002";
@@ -33,7 +34,7 @@ function useExampleGame() {
   return state;
 }
 
-function ExampleGame({ state }) {
+function ExampleGame({ state, pbp }) {
   if (state.error) return <p className="muted error">Couldn&rsquo;t load the example game.</p>;
   if (!state.game) return <p className="muted">Loading an example game…</p>;
   const { gameEt, awayTeam: away, homeTeam: home } = state.game;
@@ -44,13 +45,14 @@ function ExampleGame({ state }) {
         Example game below · {away.teamTricode} {away.score} @ {home.teamTricode} {home.score} ·{" "}
         {dateLabel(gameEt.slice(0, 10))}
       </p>
-      <Matchup game={state.game} />
+      <Matchup game={state.game} pbp={pbp} />
     </>
   );
 }
 
 function ExamplePlayers() {
-  // personId -> career, filled in as each answer arrives.
+  // personId -> career, filled in as each answer arrives. A player with no
+  // regular-season games answers null, which still counts as answered.
   const [careers, setCareers] = useState({});
   const [error, setError] = useState(null);
 
@@ -68,12 +70,14 @@ function ExamplePlayers() {
 
   if (error) return <p className="muted error">Couldn&rsquo;t load the example players.</p>;
   // Wait for both, so the cards don't arrive one at a time in a shifting grid.
-  if (EXAMPLE_PLAYERS.some((p) => !careers[p.id])) {
+  if (EXAMPLE_PLAYERS.some((p) => !(p.id in careers))) {
     return <p className="muted">Loading example players…</p>;
   }
+  const shown = EXAMPLE_PLAYERS.filter((p) => careers[p.id]);
+  if (!shown.length) return <p className="muted">No career numbers for the example players.</p>;
   return (
     <section className="example-careers">
-      {EXAMPLE_PLAYERS.map((player) => (
+      {shown.map((player) => (
         <CareerCard key={player.id} player={player} career={careers[player.id]} />
       ))}
     </section>
@@ -82,6 +86,8 @@ function ExamplePlayers() {
 
 export default function Landing({ onPick }) {
   const example = useExampleGame();
+  // One download of the play-by-play for both the court and the matchup.
+  const pbp = usePlayByPlay(example.game?.gameId);
 
   return (
     <main className="landing">
@@ -94,14 +100,14 @@ export default function Landing({ onPick }) {
             shot from. Or look up anyone who has played in the league for their career averages.
           </p>
         </div>
-        <ShotHero game={example.game} />
+        <ShotHero game={example.game} pbp={pbp} />
       </header>
 
       <h2 className="section-title">Games</h2>
       <button type="button" className="open-mode" onClick={() => onPick("games")}>
         Check out any game since 2019-20
       </button>
-      <ExampleGame state={example} />
+      <ExampleGame state={example} pbp={pbp} />
 
       <h2 className="section-title">Players</h2>
       <button type="button" className="open-mode" onClick={() => onPick("players")}>
