@@ -10,6 +10,8 @@ export default function GameList({ games, activeGameId, onSelect }) {
             key={game.gameId}
             type="button"
             className={game.gameId === activeGameId ? "game active" : "game"}
+            // Says which game is open to a screen reader, as .active does by sight.
+            aria-pressed={game.gameId === activeGameId}
             onClick={() => onSelect(game.gameId)}
           >
             {game.away.tricode} {game.away.score} @ {game.home.tricode} {game.home.score}
