@@ -38,12 +38,17 @@ export const LABELS = {
 
 // CDN minutes come as ISO 8601 durations, e.g. "PT34M12.00S", with minutes
 // zero-padded to two digits. A box score writes them unpadded: "8:34".
-export function formatValue(key, value) {
+// `stats` is the rest of the line, so a percentage with no attempts behind it
+// (a center's 3PT %, which the CDN sends as 0) reads "—" rather than "0.0%".
+export function formatValue(key, value, stats) {
   if (key.startsWith("minutes") && typeof value === "string") {
     const m = value.match(/PT(\d+)M(\d+)/);
     return m ? `${Number(m[1])}:${m[2].padStart(2, "0")}` : value;
   }
-  if (key.endsWith("Percentage")) return `${(value * 100).toFixed(1)}%`;
+  if (key.endsWith("Percentage")) {
+    if (stats?.[key.replace("Percentage", "Attempted")] === 0) return "—";
+    return `${(value * 100).toFixed(1)}%`;
+  }
   if (key === "plusMinusPoints" && value > 0) return `+${value}`;
   return String(value);
 }
@@ -97,7 +102,8 @@ export function initials(player) {
   return (first.charAt(0) + last.charAt(0)).toUpperCase() || "?";
 }
 
-const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+// "1 point", "31 points".
+export const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const madeOf = (made, attempted) => `${made}-of-${attempted}`;
 
 // One sentence on how the player got their points, e.g. "31 points on 12-of-19

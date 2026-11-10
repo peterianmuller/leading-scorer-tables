@@ -52,29 +52,39 @@ function ExampleGame({ state, pbp }) {
 
 function ExamplePlayers() {
   // personId -> career, filled in as each answer arrives. A player with no
-  // regular-season games answers null, which still counts as answered.
+  // regular-season games answers null, and a failed lookup is stored as null
+  // too, so one player's error doesn't take the other's card down with it.
   const [careers, setCareers] = useState({});
-  const [error, setError] = useState(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let current = true;
     for (const player of EXAMPLE_PLAYERS) {
+      const answer = (data) => current && setCareers((c) => ({ ...c, [player.id]: data }));
       fetchCareer(player.id)
-        .then((data) => current && setCareers((c) => ({ ...c, [player.id]: data })))
-        .catch((err) => current && setError(err.message));
+        .then(answer)
+        .catch(() => {
+          if (current) setFailed(true);
+          answer(null);
+        });
     }
     return () => {
       current = false;
     };
   }, []);
 
-  if (error) return <p className="muted error">Couldn&rsquo;t load the example players.</p>;
   // Wait for both, so the cards don't arrive one at a time in a shifting grid.
   if (EXAMPLE_PLAYERS.some((p) => !(p.id in careers))) {
     return <p className="muted">Loading example players…</p>;
   }
   const shown = EXAMPLE_PLAYERS.filter((p) => careers[p.id]);
-  if (!shown.length) return <p className="muted">No career numbers for the example players.</p>;
+  if (!shown.length) {
+    return failed ? (
+      <p className="muted error">Couldn&rsquo;t load the example players.</p>
+    ) : (
+      <p className="muted">No career numbers for the example players.</p>
+    );
+  }
   return (
     <section className="example-careers">
       {shown.map((player) => (

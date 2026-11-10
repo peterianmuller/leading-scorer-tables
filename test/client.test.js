@@ -5,6 +5,7 @@ import { test, describe, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  count,
   formatValue,
   initials,
   KEY_STATS,
@@ -71,6 +72,14 @@ describe("formatValue", () => {
     assert.equal(formatValue("freeThrowsPercentage", 0), "0.0%");
   });
 
+  test("shows a dash for a percentage with no attempts behind it", () => {
+    const stats = { threePointersAttempted: 0, freeThrowsAttempted: 4 };
+    assert.equal(formatValue("threePointersPercentage", 0, stats), "—");
+    // 0-of-4 is a real 0%, and without the stat line there's nothing to check.
+    assert.equal(formatValue("freeThrowsPercentage", 0, stats), "0.0%");
+    assert.equal(formatValue("threePointersPercentage", 0), "0.0%");
+  });
+
   test("signs a positive plus/minus but not zero or a negative", () => {
     assert.equal(formatValue("plusMinusPoints", 7), "+7");
     assert.equal(formatValue("plusMinusPoints", 0), "0");
@@ -80,6 +89,14 @@ describe("formatValue", () => {
   test("stringifies everything else unchanged", () => {
     assert.equal(formatValue("points", 31), "31");
     assert.equal(formatValue("plus", 12), "12");
+  });
+});
+
+describe("count", () => {
+  test("pluralizes everything but one", () => {
+    assert.equal(count(1, "shot"), "1 shot");
+    assert.equal(count(0, "shot"), "0 shots");
+    assert.equal(count(20, "shot"), "20 shots");
   });
 });
 

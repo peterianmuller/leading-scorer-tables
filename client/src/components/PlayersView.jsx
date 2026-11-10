@@ -47,8 +47,12 @@ export default function PlayersView({ onHome }) {
     };
   }, []);
 
+  const player = players?.find((p) => String(p.id) === playerId);
+  // Only known once the list is in; until then the career loads alongside it.
+  const unknown = players !== null && !player;
+
   useEffect(() => {
-    if (!playerId) return;
+    if (!playerId || unknown) return;
     let current = true;
     fetchCareer(playerId)
       .then((data) => current && setCareer({ personId: playerId, data, error: null }))
@@ -56,7 +60,7 @@ export default function PlayersView({ onHome }) {
     return () => {
       current = false;
     };
-  }, [playerId]);
+  }, [playerId, unknown]);
 
   function choose(player) {
     const id = String(player.id);
@@ -64,7 +68,6 @@ export default function PlayersView({ onHome }) {
     setPlayerId(id);
   }
 
-  const player = players?.find((p) => String(p.id) === playerId);
   // Nobody picked yet is not "loaded": career starts out tagged with a null
   // personId too, and would otherwise match.
   const loaded = playerId !== null && career.personId === playerId;
@@ -82,7 +85,7 @@ export default function PlayersView({ onHome }) {
     <main>
       <header>
         <ViewHeader title="Players" onHome={onHome} />
-        {players && <PlayerSearch players={players} onSelect={choose} />}
+        {players && <PlayerSearch players={players} selected={player?.name} onSelect={choose} />}
       </header>
 
       {!status && player && career.data && (

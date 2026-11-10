@@ -21,7 +21,8 @@ export default function TeamCard({ team, player, isLeader, flow, periods }) {
             <div className="player-id">
               <h2 className="player-name">{player.name}</h2>
               <p className="player-meta muted">
-                #{player.jerseyNum} · {player.position || "—"}
+                {player.jerseyNum && `#${player.jerseyNum} · `}
+                {player.position || "—"}
               </p>
             </div>
           </div>
