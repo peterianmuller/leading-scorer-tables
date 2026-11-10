@@ -216,6 +216,14 @@ describe("plainText", () => {
     );
   });
 
+  test("decodes hex character references too", () => {
+    assert.equal(plainText("Kev&#x27;s &#X2014; Flickr"), "Kev's \u2014 Flickr");
+  });
+
+  test("drops a character reference past the end of Unicode instead of throwing", () => {
+    assert.equal(plainText("a&#99999999;b&#x110000;c"), "abc");
+  });
+
   test("decodes &amp; last so an escaped entity stays literal", () => {
     assert.equal(plainText("&amp;lt;"), "&lt;");
   });
@@ -866,6 +874,19 @@ describe("HTTP server", () => {
       const res = await get(port, "/api/boxscore");
       assert.equal(res.status, 502);
       assert.match(res.json().error, /^Couldn't reach NBA for \/static\/json.*: fetch failed$/);
+    });
+
+    test("ends a non-403 error at the sentence, with no trailing space", async () => {
+      upstream(500, {});
+      const res = await get(port, "/api/boxscore");
+      assert.equal(res.status, 502);
+      assert.match(res.json().error, /^NBA returned 500 for \/static\/json\S+\.$/);
+    });
+
+    test("explains what an NBA 403 can mean", async () => {
+      upstream(403, {});
+      const res = await get(port, "/api/boxscore");
+      assert.match(res.json().error, /returned 403 for \S+\. Either the request was blocked/);
     });
 
     test("502s when a 200 from upstream isn't JSON", async () => {

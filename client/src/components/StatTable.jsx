@@ -23,7 +23,7 @@ export default function StatTable({ stats, labels = LABELS, format = formatValue
             {keys.map((k) => (
               <tr key={k} className={k === "points" ? "points" : undefined}>
                 <td>{labels[k] || LABELS[k] || k}</td>
-                <td>{format(k, stats[k])}</td>
+                <td>{format(k, stats[k], stats)}</td>
               </tr>
             ))}
           </tbody>

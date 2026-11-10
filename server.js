@@ -7,12 +7,10 @@
 //   curl "http://localhost:3000/api/boxscore?gameId=0022500066"  # any game
 //   curl "http://localhost:3000/api/schedule"                     # season's games
 //   curl "http://localhost:3000/api/schedule?season=2023-24"
+//   curl "http://localhost:3000/api/playbyplay?gameId=0022500066"  # trimmed plays
 //   curl "http://localhost:3000/api/headshot?personId=2544"       # Commons photo
 //   curl "http://localhost:3000/api/players"                      # all-time players
 //   curl "http://localhost:3000/api/career?personId=2544"         # career averages
-//
-// NOTE: still an ES module, so either keep this as server.mjs or add
-// { "type": "module" } to package.json.
 
 import http from "node:http";
 import { existsSync, realpathSync } from "node:fs";
@@ -148,9 +146,9 @@ export async function fetchJson(
     // file genuinely isn't there. The CDN returns 403 for missing objects
     // rather than 404, so the status alone can't tell you which.
     const err = new Error(
-      `${upstream} returned ${res.status} for ${where}. ` +
+      `${upstream} returned ${res.status} for ${where}.` +
         (res.status === 403 && upstream === "NBA"
-          ? "Either the request was blocked or that game has no live file."
+          ? " Either the request was blocked or that game has no live file."
           : ""),
     );
     err.status = res.status === 404 ? 404 : 502;
@@ -290,14 +288,19 @@ export function pickWikidataImage(payload) {
 const HIDDEN_ELEMENT =
   /<(\w+)\b[^>]*\bstyle\s*=\s*["'][^"']*display\s*:\s*none[^>]*>[\s\S]*?<\/\1>/gi;
 
+// A numeric character reference's character, or nothing for a code point past
+// Unicode's end, which String.fromCodePoint would throw on.
+const codePoint = (n) => (n <= 0x10ffff ? String.fromCodePoint(n) : "");
+
 // Commons' Artist field is HTML, usually a link to the photographer's profile.
 // The client renders text, so hidden elements and tags go and the common
-// entities are decoded.
+// entities are decoded, numeric ones in decimal (&#39;) or hex (&#x27;).
 export function plainText(html) {
   return html
     .replace(HIDDEN_ELEMENT, "")
     .replace(/<[^>]*>/g, "")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#(\d+);/g, (_, n) => codePoint(Number(n)))
+    .replace(/&#x([\da-f]+);/gi, (_, h) => codePoint(parseInt(h, 16)))
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")

@@ -4,7 +4,7 @@
 
 import { useMemo } from "react";
 import { DOT, VIEW, playerShots } from "../lib/shots.js";
-import { teamLeader } from "../lib/stats.js";
+import { count, teamLeader } from "../lib/stats.js";
 import { CourtLines, Cross } from "./ShotChart.jsx";
 
 // The court draws in as soon as the page does; the shots wait for the game.
@@ -22,9 +22,11 @@ export default function ShotHero({ game, pbp }) {
         <CourtLines />
         {player && <Shots actions={pbp.actions} player={player} />}
       </svg>
-      {player && (
+      {/* Without the play-by-play the court stays empty, so it claims no shots. */}
+      {player && !pbp.error && (
         <figcaption className="muted">
-          {player.name}&rsquo;s {player.statistics.fieldGoalsAttempted} shots in the example game
+          {player.name}&rsquo;s {count(player.statistics.fieldGoalsAttempted, "shot")} in the
+          example game
         </figcaption>
       )}
     </figure>

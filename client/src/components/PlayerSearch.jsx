@@ -3,13 +3,22 @@ import { careerYears, matchPlayers } from "../lib/players.js";
 
 // A name box that suggests players as you type. Arrow keys move through the
 // suggestions, Enter picks one, Escape closes the list; a click works too.
-export default function PlayerSearch({ players, onSelect }) {
-  const [query, setQuery] = useState("");
+// `selected` is the name of the player showing, so the box agrees with the
+// card when a link or back/forward picks someone instead of the user.
+export default function PlayerSearch({ players, selected = "", onSelect }) {
+  const [query, setQuery] = useState(selected);
+  const [shown, setShown] = useState(selected);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const id = useId();
   const matches = useMemo(() => matchPlayers(players, query), [players, query]);
   const showList = open && matches.length > 0;
+
+  // Done during render, so the box never shows the previous player's name.
+  if (shown !== selected) {
+    setShown(selected);
+    setQuery(selected);
+  }
 
   function pick(player) {
     setQuery(player.name);
