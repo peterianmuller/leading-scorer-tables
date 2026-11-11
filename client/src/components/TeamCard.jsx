@@ -11,7 +11,8 @@ export default function TeamCard({ team, player, isLeader, flow, periods }) {
   return (
     <article className={isLeader ? "team leader" : "team"}>
       <p className="team-name muted">
-        {team.teamCity} {team.teamName} · {team.score}
+        {team.teamCity} {team.teamName}
+        {isLeader && <span className="badge">Top scorer</span>}
       </p>
 
       {player ? (

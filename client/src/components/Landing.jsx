@@ -37,13 +37,11 @@ function useExampleGame() {
 function ExampleGame({ state, pbp }) {
   if (state.error) return <p className="muted error">Couldn&rsquo;t load the example game.</p>;
   if (!state.game) return <p className="muted">Loading an example game…</p>;
-  const { gameEt, awayTeam: away, homeTeam: home } = state.game;
-  // Reads like the game's button in the Games view, plus the day it was played.
+  // The scoreboard below has the teams and score; this says it's a sample.
   return (
     <>
       <p className="muted example-caption">
-        Example game below · {away.teamTricode} {away.score} @ {home.teamTricode} {home.score} ·{" "}
-        {dateLabel(gameEt.slice(0, 10))}
+        Example game · {dateLabel(state.game.gameEt.slice(0, 10))}
       </p>
       <Matchup game={state.game} pbp={pbp} />
     </>
@@ -115,13 +113,13 @@ export default function Landing({ onPick }) {
 
       <h2 className="section-title">Games</h2>
       <button type="button" className="open-mode" onClick={() => onPick("games")}>
-        Check out any game since 2019-20
+        Check out any game since 2019-20 <span aria-hidden="true">→</span>
       </button>
       <ExampleGame state={example} pbp={pbp} />
 
       <h2 className="section-title">Players</h2>
       <button type="button" className="open-mode" onClick={() => onPick("players")}>
-        Look up any player&rsquo;s career
+        Look up any player&rsquo;s career <span aria-hidden="true">→</span>
       </button>
       <ExamplePlayers />
     </main>
