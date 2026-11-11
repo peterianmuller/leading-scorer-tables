@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { lastPeriod, scoringFlow } from "../lib/scoring.js";
 import { teamLeader } from "../lib/stats.js";
+import Scoreboard from "./Scoreboard.jsx";
 import ScoringFlow from "./ScoringFlow.jsx";
 import ShotCharts from "./ShotChart.jsx";
 import TeamCard from "./TeamCard.jsx";
@@ -43,6 +44,7 @@ export default function Matchup({ game, pbp }) {
   // no single top scorer to point at.
   return (
     <>
+      <Scoreboard game={game} />
       <section id="teams">
         <TeamCard
           team={game.awayTeam}

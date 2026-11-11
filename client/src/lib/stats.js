@@ -72,6 +72,15 @@ export const KEY_STATS = [
   "plusMinusPoints",
 ];
 
+// The key stats' short names, for the big-number tiles at the top of a card.
+export const TILE_LABELS = {
+  points: "PTS",
+  fieldGoalsPercentage: "FG%",
+  reboundsTotal: "REB",
+  assists: "AST",
+  plusMinusPoints: "+/−",
+};
+
 // The key stats the CDN sent, in KEY_STATS order, then everything else in
 // orderedStatKeys order. Key stats lead the full list too, so expanding a
 // card adds rows below the ones already showing instead of reshuffling them.

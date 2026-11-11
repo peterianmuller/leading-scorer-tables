@@ -11,6 +11,14 @@ const LABELS = {
   plusMinusPoints: "Plus/Minus per game",
 };
 
+const TILE_LABELS = {
+  points: "PPG",
+  fieldGoalsPercentage: "FG%",
+  reboundsTotal: "RPG",
+  assists: "APG",
+  plusMinusPoints: "+/−",
+};
+
 // Averages always show one decimal ("27.0", not "27"). null is a stat the
 // league didn't keep yet when the player played.
 function format(key, value) {
@@ -46,7 +54,7 @@ export default function CareerCard({ player, career }) {
           </p>
         </div>
       </div>
-      <StatTable stats={career.stats} labels={LABELS} format={format} />
+      <StatTable stats={career.stats} labels={LABELS} tileLabels={TILE_LABELS} format={format} />
       {note && <p className="muted footnote">{note}</p>}
     </article>
   );
