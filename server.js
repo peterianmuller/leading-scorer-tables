@@ -534,6 +534,7 @@ const MIME = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
 };
 
 // Serves the built front end from STATIC_DIR. Anything outside that directory or
