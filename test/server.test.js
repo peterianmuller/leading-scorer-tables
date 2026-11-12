@@ -954,6 +954,12 @@ describe("HTTP server", () => {
       assert.equal(js.headers["content-type"], "text/javascript; charset=utf-8");
     });
 
+    test("serves the bundled Inter font files as font/woff2", async () => {
+      const font = await get(port, "/assets/font-fixture.woff2");
+      assert.equal(font.status, 200);
+      assert.equal(font.headers["content-type"], "font/woff2");
+    });
+
     test("404s for unknown paths and lists the API routes", async () => {
       const res = await get(port, "/nope");
       assert.equal(res.status, 404);
